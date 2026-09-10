@@ -17,9 +17,17 @@ Balance Sheet reports - all backed by Firebase, in real time.
 - **Double-entry**: every transaction - manual journal entry, invoice,
   or bill - becomes one balanced journal entry (`validateJournalLines`
   enforces debit total == credit total before it's saved). Invoices and
-  bills auto-post their entry (`buildInvoiceJournalLines` /
-  `buildBillJournalLines`) so users never touch a debit/credit form
-  unless they want to.
+  bills always post to Accounts Receivable/Payable first
+  (`buildInvoiceJournalLines` / `buildBillJournalLines`); money actually
+  received or paid is recorded afterwards, separately, via "Record
+  payment" (`buildPaymentJournalLines`) - so partial payments and an
+  accurate balance-due are tracked correctly, the way real books work.
+- **Customers, Vendors, Items**: reusable contact and product/service
+  catalogs (with HSN/SAC codes and default rates) that invoices and
+  bills pick from - typing a new party name on an invoice also adds it
+  to Customers/Vendors automatically.
+- **Business Settings**: company name, GSTIN, address and invoice/bill
+  numbering, used as the letterhead on every printable invoice and bill.
 - **Reports**: computed on the client from the live journal entries -
   Trial Balance, date-ranged Profit & Loss, and an as-of-date Balance
   Sheet (`src/lib/accounting.js`).
@@ -46,4 +54,4 @@ to "GitHub Actions" once, the first time).
 - Inviting additional team members into an existing org (each signup
   currently gets its own single-owner org).
 - Editing/voiding a posted invoice, bill, or journal entry.
-- Exporting reports to PDF/Excel.
+- Exporting reports to PDF/Excel (invoices/bills do have a print view).

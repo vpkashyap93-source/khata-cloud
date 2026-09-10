@@ -90,6 +90,16 @@ export const getOrg = async (orgId) => {
   return snap.exists() ? { id: orgId, ...snap.data() } : null
 }
 
+// Live subscription to the org profile itself - so a Settings change
+// (business name, address, invoice prefix) shows up everywhere it's used
+// (letterhead, invoice numbering) without needing to log back in.
+export const watchOrg = (orgId, callback) => {
+  if (!db) { callback(null); return () => {} }
+  return onSnapshot(doc(db, 'orgs', orgId), (snap) => {
+    callback(snap.exists() ? { id: orgId, ...snap.data() } : null)
+  })
+}
+
 export const updateOrg = (orgId, fields) => setDoc(doc(db, 'orgs', orgId), fields, { merge: true })
 
 // Generic real-time subscription to one of an org's sub-collections,

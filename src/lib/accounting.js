@@ -67,11 +67,13 @@ export const calcGst = (taxableAmount, gstPercent, interState) => {
 
 export const findAccountId = (accounts, name) => accounts.find((account) => account.name === name)?.id || null
 
-// Builds the debit/credit lines a sale should post: the customer (or cash)
-// owes the full invoice total, Sales Revenue is credited for the taxable
-// amount, and the GST collected is credited to GST Payable.
-export const buildInvoiceJournalLines = (accounts, { taxable, cgst, sgst, igst, total }, paidNow) => {
-  const receivableId = paidNow ? findAccountId(accounts, 'Cash') : findAccountId(accounts, 'Accounts Receivable')
+// Builds the debit/credit lines a sale should post: the customer owes the
+// full invoice total (Accounts Receivable), Sales Revenue is credited for
+// the taxable amount, and the GST collected is credited to GST Payable.
+// Every sale books to AR first - money received is recorded separately via
+// buildPaymentJournalLines, exactly as a real books of account work.
+export const buildInvoiceJournalLines = (accounts, { taxable, cgst, sgst, igst, total }) => {
+  const receivableId = findAccountId(accounts, 'Accounts Receivable')
   const salesId = findAccountId(accounts, 'Sales Revenue')
   const gstId = findAccountId(accounts, 'GST Payable')
   const lines = [{ accountId: receivableId, debit: total, credit: 0 }]
@@ -82,9 +84,10 @@ export const buildInvoiceJournalLines = (accounts, { taxable, cgst, sgst, igst, 
 }
 
 // Mirror of the above for a purchase bill: Purchases and Input GST Credit
-// are debited, and the vendor (or cash paid out) is credited.
-export const buildBillJournalLines = (accounts, { taxable, cgst, sgst, igst, total }, paidNow) => {
-  const payableId = paidNow ? findAccountId(accounts, 'Cash') : findAccountId(accounts, 'Accounts Payable')
+// are debited, and the vendor is credited (Accounts Payable) - payment made
+// is recorded separately via buildPaymentJournalLines.
+export const buildBillJournalLines = (accounts, { taxable, cgst, sgst, igst, total }) => {
+  const payableId = findAccountId(accounts, 'Accounts Payable')
   const purchasesId = findAccountId(accounts, 'Purchases')
   const gstInputId = findAccountId(accounts, 'Input GST Credit')
   const lines = [{ accountId: purchasesId, debit: taxable, credit: 0 }]
@@ -92,6 +95,25 @@ export const buildBillJournalLines = (accounts, { taxable, cgst, sgst, igst, tot
   if (tax > 0) lines.push({ accountId: gstInputId, debit: tax, credit: 0 })
   lines.push({ accountId: payableId, debit: 0, credit: total })
   return lines
+}
+
+// Records money actually changing hands against an already-posted invoice
+// or bill: a customer payment clears Accounts Receivable into Cash/Bank; a
+// vendor payment clears Cash/Bank into Accounts Payable.
+export const buildPaymentJournalLines = (accounts, amount, direction, cashAccountName = 'Cash') => {
+  const cashId = findAccountId(accounts, cashAccountName)
+  if (direction === 'receivable') {
+    const receivableId = findAccountId(accounts, 'Accounts Receivable')
+    return [
+      { accountId: cashId, debit: amount, credit: 0 },
+      { accountId: receivableId, debit: 0, credit: amount },
+    ]
+  }
+  const payableId = findAccountId(accounts, 'Accounts Payable')
+  return [
+    { accountId: payableId, debit: amount, credit: 0 },
+    { accountId: cashId, debit: 0, credit: amount },
+  ]
 }
 
 const entriesInRange = (entries, from, to) =>
@@ -226,23 +248,33 @@ export const topExpenseAccounts = (accounts, entries, limit = 5) =>
     .sort((a, b) => b.amount - a.amount)
     .slice(0, limit)
 
+// Balance still owed on an invoice or bill, and whether that makes it
+// paid / partially paid / unpaid.
+export const balanceDue = (doc) => {
+  const total = Number(doc.total) || 0
+  const paid = Number(doc.amountPaid) || 0
+  const due = round2(total - paid)
+  const status = due <= 0 ? 'paid' : paid > 0 ? 'partial' : 'unpaid'
+  return { total, paid, due, status }
+}
+
 // Paid / unpaid / overdue counts and amounts across a set of invoices (or
-// bills) - unpaid for more than 30 days counts as overdue.
+// bills) - anything still owed after 30 days counts as overdue.
 export const invoiceStats = (invoices, today = new Date()) => {
   const stats = { paidCount: 0, paidAmount: 0, unpaidCount: 0, unpaidAmount: 0, overdueCount: 0, overdueAmount: 0 }
   invoices.forEach((invoice) => {
-    const total = Number(invoice.total) || 0
-    if (invoice.paidNow) {
+    const { total, due, status } = balanceDue(invoice)
+    if (status === 'paid') {
       stats.paidCount += 1
       stats.paidAmount = round2(stats.paidAmount + total)
       return
     }
     stats.unpaidCount += 1
-    stats.unpaidAmount = round2(stats.unpaidAmount + total)
+    stats.unpaidAmount = round2(stats.unpaidAmount + due)
     const ageDays = (today - new Date(invoice.date)) / 86400000
     if (ageDays > 30) {
       stats.overdueCount += 1
-      stats.overdueAmount = round2(stats.overdueAmount + total)
+      stats.overdueAmount = round2(stats.overdueAmount + due)
     }
   })
   return stats
