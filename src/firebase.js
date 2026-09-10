@@ -21,16 +21,16 @@ import {
 } from 'firebase/auth'
 import { DEFAULT_ACCOUNTS } from './lib/accounting.js'
 
-// Same Firebase project as the restaurant app (the web API key is public by
-// design), but this product lives under its own top-level collections
-// ("accountingUsers" / "orgs") so the two never share data.
+// Dedicated Firebase project for Khata Cloud - separate from the
+// restaurant app's project, so the two products never share users or data.
+// The web API key is public by design (safe to ship in client code).
 const firebaseConfig = {
-  apiKey: 'AIzaSyCMVGfxpbxJJW2y3imKjRp6adhtR69DfkQ',
-  authDomain: 'resturent-order.firebaseapp.com',
-  projectId: 'resturent-order',
-  storageBucket: 'resturent-order.firebasestorage.app',
-  messagingSenderId: '801428487693',
-  appId: '1:801428487693:web:9191d342b050119f845f44',
+  apiKey: 'AIzaSyABc2iBGPGWS7OOSMbMWPtXTpH40oO8Jc0',
+  authDomain: 'khatacloud-a53c6.firebaseapp.com',
+  projectId: 'khatacloud-a53c6',
+  storageBucket: 'khatacloud-a53c6.firebasestorage.app',
+  messagingSenderId: '1086015124583',
+  appId: '1:1086015124583:web:965e349a6e751c629290c2',
 }
 
 export const isFirebaseConfigured = !firebaseConfig.apiKey.startsWith('PASTE_')
