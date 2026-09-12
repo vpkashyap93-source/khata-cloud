@@ -1,4 +1,4 @@
-import { accountBalance, cashTrend, monthlyIncomeExpense, topExpenseAccounts, invoiceStats, round2 } from '../lib/accounting.js'
+import { accountBalance, cashTrend, monthlyIncomeExpense, topExpenseAccounts, invoiceStats, upcomingDues, round2 } from '../lib/accounting.js'
 import Icon from './icons.jsx'
 
 const money = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
@@ -128,6 +128,13 @@ export default function Dashboard({ accounts, entries, invoices, bills }) {
 
   const recent = entries.slice(0, 6)
   const accountName = (id) => accounts.find((account) => account.id === id)?.name || 'Unknown'
+  const dues = upcomingDues(invoices, bills, 5)
+  const dueLabel = (dueDate) => {
+    const days = Math.round((new Date(dueDate) - new Date(new Date().toISOString().slice(0, 10))) / 86400000)
+    if (days < 0) return { text: `Overdue by ${Math.abs(days)}d`, overdue: true }
+    if (days === 0) return { text: 'Due today', overdue: false }
+    return { text: `Due in ${days}d`, overdue: false }
+  }
 
   return (
     <div className="dashboard">
@@ -167,6 +174,26 @@ export default function Dashboard({ accounts, entries, invoices, bills }) {
               </div>
             </div>
           ))}
+        </div>
+
+        <div className="dash-card">
+          <div className="dash-card-head"><h3>Upcoming dues</h3><span className="dash-card-sub">Nearest due first</span></div>
+          {dues.length === 0 && <p className="empty-note">Nothing due - you're all caught up.</p>}
+          {dues.map((doc) => {
+            const label = dueLabel(doc.dueDate)
+            return (
+              <div className="due-row" key={doc.id}>
+                <div className={`due-icon src-${doc.kind}`}><Icon name={doc.kind === 'invoice' ? 'invoices' : 'bills'} size={13} /></div>
+                <div className="due-row-body">
+                  <div className="due-row-top">
+                    <span>{doc.partyName}</span>
+                    <span>{money(doc.due)}</span>
+                  </div>
+                  <div className={`due-row-sub ${label.overdue ? 'overdue' : ''}`}>{doc.number} · {label.text}</div>
+                </div>
+              </div>
+            )
+          })}
         </div>
 
         <div className="dash-card">

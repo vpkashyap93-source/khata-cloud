@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { calcGst, buildInvoiceJournalLines, round2 } from '../lib/accounting.js'
+import { calcGst, buildInvoiceJournalLines, computeDueDate, round2 } from '../lib/accounting.js'
 import { addOrgDoc, setOrgDoc } from '../firebase.js'
 import Icon from './icons.jsx'
 
@@ -127,6 +127,7 @@ export default function Estimates({ orgId, accounts, estimates, invoices, custom
     const invoiceId = await addOrgDoc(orgId, 'invoices', {
       number,
       date: today(),
+      dueDate: computeDueDate({ date: today() }, org.paymentTermDays),
       partyName: estimate.partyName,
       items: estimate.items,
       gstPercent: estimate.gstPercent,

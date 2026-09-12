@@ -20,6 +20,7 @@ export default function Settings({ orgId, org }) {
     email: org.email || '',
     invoicePrefix: org.invoicePrefix || 'INV',
     billPrefix: org.billPrefix || 'BILL',
+    paymentTermDays: org.paymentTermDays || 30,
   })
   const [saved, setSaved] = useState(false)
 
@@ -71,7 +72,7 @@ export default function Settings({ orgId, org }) {
           </label>
         </div>
 
-        <p className="report-section-title">Invoice Numbering</p>
+        <p className="report-section-title">Invoicing</p>
         <div className="journal-header-row">
           <label>
             Invoice number prefix
@@ -80,6 +81,16 @@ export default function Settings({ orgId, org }) {
           <label>
             Bill number prefix
             <input value={form.billPrefix} onChange={(event) => update('billPrefix', event.target.value)} />
+          </label>
+          <label>
+            Default payment terms (days)
+            <input
+              type="number"
+              min="0"
+              max="365"
+              value={form.paymentTermDays}
+              onChange={(event) => update('paymentTermDays', event.target.value)}
+            />
           </label>
         </div>
 

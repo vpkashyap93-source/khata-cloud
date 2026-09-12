@@ -11,6 +11,8 @@ import {
   canVoid,
   reverseLines,
   round2,
+  computeDueDate,
+  isOverdue,
 } from '../lib/accounting.js'
 import { addOrgDoc, setOrgDoc } from '../firebase.js'
 import Icon from './icons.jsx'
@@ -39,6 +41,7 @@ function PrintView({ doc, org, config, onClose }) {
             <h2>{config.docLabel}</h2>
             <p>{doc.number}</p>
             <p>{doc.date}</p>
+            {doc.dueDate && <p>Due {doc.dueDate}</p>}
           </div>
         </div>
         <div className="print-party">
@@ -192,6 +195,7 @@ function IssueNote({ orgId, doc, accounts, config, notesCount, onDone }) {
 function DocumentForm({ orgId, accounts, documents, contacts, items, notes, entries, org, config }) {
   const [partyName, setPartyName] = useState('')
   const [date, setDate] = useState(today())
+  const [dueDate, setDueDate] = useState(() => computeDueDate({ date: today() }, org.paymentTermDays))
   const [lineItems, setLineItems] = useState([blankItem()])
   const [gstPercent, setGstPercent] = useState(18)
   const [interState, setInterState] = useState(false)
@@ -236,6 +240,7 @@ function DocumentForm({ orgId, accounts, documents, contacts, items, notes, entr
     const docData = {
       number,
       date,
+      dueDate,
       partyName: trimmedName,
       items: savedItems,
       gstPercent: Number(gstPercent) || 0,
@@ -269,6 +274,7 @@ function DocumentForm({ orgId, accounts, documents, contacts, items, notes, entr
 
     setPartyName('')
     setLineItems([blankItem()])
+    setDueDate(computeDueDate({ date: today() }, org.paymentTermDays))
   }
 
   const voidDocument = async (doc) => {
@@ -304,6 +310,10 @@ function DocumentForm({ orgId, accounts, documents, contacts, items, notes, entr
           <label>
             Date
             <input type="date" value={date} onChange={(event) => setDate(event.target.value)} required />
+          </label>
+          <label>
+            Due date
+            <input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} required />
           </label>
         </div>
         <table>
@@ -351,20 +361,23 @@ function DocumentForm({ orgId, accounts, documents, contacts, items, notes, entr
 
       <h3>Recent {config.title.toLowerCase()}</h3>
       <table>
-        <thead><tr><th>#</th><th>Date</th><th>{config.partyLabel}</th><th className="amt">Total</th><th className="amt">Balance due</th><th>Status</th><th /></tr></thead>
+        <thead><tr><th>#</th><th>Date</th><th>Due date</th><th>{config.partyLabel}</th><th className="amt">Total</th><th className="amt">Balance due</th><th>Status</th><th /></tr></thead>
         <tbody>
           {documents.map((item) => {
             const { due, status } = balanceDue(item)
             const canNote = !item.voided && creditableAmount(item) > 0
-            const pillClass = status === 'paid' ? 'paid' : status === 'partial' ? 'due' : status === 'void' ? 'void' : 'overdue'
+            const overdue = isOverdue(item)
+            const pillClass = status === 'paid' ? 'paid' : status === 'void' ? 'void' : overdue ? 'overdue' : 'due'
+            const statusLabel = status === 'paid' || status === 'void' ? status : overdue ? 'overdue' : status
             return (
               <tr key={item.id} className={item.voided ? 'voided-row' : ''}>
                 <td>{item.number}</td>
                 <td>{item.date}</td>
+                <td className={overdue ? 'overdue-date' : ''}>{item.dueDate || computeDueDate(item)}</td>
                 <td>{item.partyName}</td>
                 <td className="amt">{Number(item.total).toFixed(2)}</td>
                 <td className="amt">{due.toFixed(2)}</td>
-                <td><span className={`status-pill ${pillClass}`}>{status}</span></td>
+                <td><span className={`status-pill ${pillClass}`}>{statusLabel}</span></td>
                 <td>
                   <div className="action-pills">
                     <button type="button" className="action-pill" onClick={() => setPrintingDoc(item)}><Icon name="print" size={13} />Print</button>
@@ -384,14 +397,14 @@ function DocumentForm({ orgId, accounts, documents, contacts, items, notes, entr
           })}
           {documents.map((item) => payingId === item.id && (
             <tr key={`pay-${item.id}`}>
-              <td colSpan={7}>
+              <td colSpan={8}>
                 <RecordPayment orgId={orgId} doc={item} accounts={accounts} config={config} onDone={() => setPayingId(null)} />
               </td>
             </tr>
           ))}
           {documents.map((item) => notingId === item.id && (
             <tr key={`note-${item.id}`}>
-              <td colSpan={7}>
+              <td colSpan={8}>
                 <IssueNote orgId={orgId} doc={item} accounts={accounts} config={config} notesCount={notes.length} onDone={() => setNotingId(null)} />
               </td>
             </tr>

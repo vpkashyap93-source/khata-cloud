@@ -306,8 +306,30 @@ export const creditableAmount = (doc) => round2((Number(doc.total) || 0) - (Numb
 // is on record, voiding it out from under those would leave them dangling.
 export const canVoid = (doc) => !doc.voided && (Number(doc.amountPaid) || 0) === 0 && (Number(doc.adjustedAmount) || 0) === 0
 
+export const DEFAULT_PAYMENT_TERM_DAYS = 30
+
+// A document's due date - its own explicit `dueDate` if one was set,
+// otherwise the org's default payment term counted from the issue date, so
+// documents created before this field existed still get a sensible date
+// instead of breaking.
+export const computeDueDate = (doc, termDays = DEFAULT_PAYMENT_TERM_DAYS) => {
+  if (doc.dueDate) return doc.dueDate
+  const date = new Date(doc.date)
+  date.setDate(date.getDate() + (Number(termDays) || DEFAULT_PAYMENT_TERM_DAYS))
+  return date.toISOString().slice(0, 10)
+}
+
+// True only once the due date has actually passed with money still owed -
+// a fresh unpaid invoice on 30-day terms is not overdue on day one.
+export const isOverdue = (doc, today = new Date()) => {
+  if (doc.voided) return false
+  const { status } = balanceDue(doc)
+  if (status === 'paid') return false
+  return new Date(computeDueDate(doc)) < today
+}
+
 // Paid / unpaid / overdue counts and amounts across a set of invoices (or
-// bills) - anything still owed after 30 days counts as overdue. Voided
+// bills), using each document's real due date (see computeDueDate). Voided
 // documents have no financial effect left and are skipped entirely.
 export const invoiceStats = (invoices, today = new Date()) => {
   const stats = { paidCount: 0, paidAmount: 0, unpaidCount: 0, unpaidAmount: 0, overdueCount: 0, overdueAmount: 0 }
@@ -321,13 +343,25 @@ export const invoiceStats = (invoices, today = new Date()) => {
     }
     stats.unpaidCount += 1
     stats.unpaidAmount = round2(stats.unpaidAmount + due)
-    const ageDays = (today - new Date(invoice.date)) / 86400000
-    if (ageDays > 30) {
+    if (isOverdue(invoice, today)) {
       stats.overdueCount += 1
       stats.overdueAmount = round2(stats.overdueAmount + due)
     }
   })
   return stats
+}
+
+// The nearest-due unpaid invoices and bills combined, nearest first - what
+// a "what needs my attention" Dashboard widget wants, without having to
+// separately reason about the two document types.
+export const upcomingDues = (invoices, bills, limit = 5) => {
+  const combine = (docs, kind) => docs
+    .filter((doc) => !doc.voided)
+    .map((doc) => ({ ...doc, kind, dueDate: computeDueDate(doc), ...balanceDue(doc) }))
+    .filter((doc) => doc.status !== 'paid')
+  return [...combine(invoices, 'invoice'), ...combine(bills, 'bill')]
+    .sort((a, b) => (a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0))
+    .slice(0, limit)
 }
 
 // Current stock on hand for one tracked item: its opening stock plus every

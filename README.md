@@ -78,6 +78,12 @@ Balance Sheet reports - all backed by Firebase, in real time.
   that builds the file client-side (`src/lib/csv.js`) from the exact
   numbers already on screen - no export service, and it opens correctly
   in Excel (UTF-8 with a BOM, so the ₹ sign doesn't get mangled).
+- **Due dates**: every invoice and bill has a real due date (defaulting
+  to the org's configurable payment terms, Settings → Invoicing), and
+  "overdue" is computed from that date, not just "any amount still
+  owed" (`computeDueDate` / `isOverdue` in `src/lib/accounting.js`).
+  The Dashboard's "Upcoming dues" widget lists the nearest-due unpaid
+  invoices and bills, overdue ones first (`upcomingDues`).
 
 ## Run locally
 
