@@ -4,6 +4,16 @@ import { addOrgDoc, setOrgDoc } from '../firebase.js'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const blankLine = () => ({ accountId: '', debit: '', credit: '' })
+const money = (value) => Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+const SOURCE_LABELS = {
+  invoice: 'Sales Invoice',
+  bill: 'Purchase Bill',
+  payment: 'Payment',
+  'credit-note': 'Credit Note',
+  'debit-note': 'Debit Note',
+  void: 'Void',
+}
 
 export default function JournalEntries({ orgId, accounts, entries }) {
   const [date, setDate] = useState(today())
@@ -18,6 +28,9 @@ export default function JournalEntries({ orgId, accounts, entries }) {
   const addLine = () => setLines((prev) => [...prev, blankLine()])
   const removeLine = (index) => setLines((prev) => prev.filter((_, i) => i !== index))
 
+  const manualCount = entries.filter((entry) => entry.source === 'manual').length
+  const nextVoucherNumber = `JV-${String(manualCount + 1).padStart(4, '0')}`
+
   const submit = async (event) => {
     event.preventDefault()
     setError('')
@@ -31,6 +44,7 @@ export default function JournalEntries({ orgId, accounts, entries }) {
       return
     }
     await addOrgDoc(orgId, 'journalEntries', {
+      number: nextVoucherNumber,
       date,
       narration: narration.trim(),
       lines: result.lines.map((line) => ({
@@ -47,9 +61,11 @@ export default function JournalEntries({ orgId, accounts, entries }) {
   const accountName = (id) => accounts.find((account) => account.id === id)?.name || 'Unknown account'
   const totalDebit = sumLines(lines, 'debit')
   const totalCredit = sumLines(lines, 'credit')
+  const hasAmount = totalDebit > 0 || totalCredit > 0
+  const balanced = hasAmount && totalDebit === totalCredit
 
   const voidEntry = async (entry) => {
-    if (!window.confirm(`Void this entry? A reversing entry will be posted - "${entry.narration}" stays in the books but nets to zero.`)) return
+    if (!window.confirm(`Void ${entry.number || 'this entry'}? A reversing entry will be posted - it stays in the books but nets to zero.`)) return
     await addOrgDoc(orgId, 'journalEntries', {
       date: today(),
       narration: `Void: ${entry.narration}`,
@@ -61,8 +77,12 @@ export default function JournalEntries({ orgId, accounts, entries }) {
 
   return (
     <div className="panel">
-      <h2>Journal Entries</h2>
+      <h2>Journal Voucher</h2>
       <form className="journal-form" onSubmit={submit}>
+        <div className="voucher-number-row">
+          <span className="voucher-badge">{nextVoucherNumber}</span>
+          <span className="section-sub">Next voucher number</span>
+        </div>
         <div className="journal-header-row">
           <label>
             Date
@@ -78,7 +98,7 @@ export default function JournalEntries({ orgId, accounts, entries }) {
           </label>
         </div>
         <table>
-          <thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th /></tr></thead>
+          <thead><tr><th>Account</th><th className="amt">Debit</th><th className="amt">Credit</th><th /></tr></thead>
           <tbody>
             {lines.map((line, index) => (
               <tr key={index}>
@@ -92,6 +112,7 @@ export default function JournalEntries({ orgId, accounts, entries }) {
                 </td>
                 <td>
                   <input
+                    className="amt-input"
                     type="number"
                     min="0"
                     step="0.01"
@@ -101,6 +122,7 @@ export default function JournalEntries({ orgId, accounts, entries }) {
                 </td>
                 <td>
                   <input
+                    className="amt-input"
                     type="number"
                     min="0"
                     step="0.01"
@@ -117,45 +139,56 @@ export default function JournalEntries({ orgId, accounts, entries }) {
           <tfoot>
             <tr>
               <td>Totals</td>
-              <td className={totalDebit !== totalCredit ? 'mismatch' : ''}>{totalDebit.toFixed(2)}</td>
-              <td className={totalDebit !== totalCredit ? 'mismatch' : ''}>{totalCredit.toFixed(2)}</td>
+              <td className={`amt ${totalDebit !== totalCredit ? 'mismatch' : ''}`}>{money(totalDebit)}</td>
+              <td className={`amt ${totalDebit !== totalCredit ? 'mismatch' : ''}`}>{money(totalCredit)}</td>
               <td />
             </tr>
           </tfoot>
         </table>
-        <button type="button" className="link-button" onClick={addLine}>+ Add line</button>
+        <div className="journal-header-row">
+          <button type="button" className="link-button" onClick={addLine}>+ Add line</button>
+          {hasAmount && (
+            <span className={balanced ? 'balance-ok' : 'balance-off'}>
+              {balanced ? '✓ Balanced' : 'Not balanced yet'}
+            </span>
+          )}
+        </div>
         {error && <p className="form-error">{error}</p>}
         <button type="submit">Post entry</button>
       </form>
 
-      <h3>Recent entries</h3>
-      <table>
-        <thead><tr><th>Date</th><th>Narration</th><th>Lines</th><th>Amount</th><th /></tr></thead>
-        <tbody>
-          {entries.map((entry) => (
-            <tr key={entry.id} className={entry.voided ? 'voided-row' : ''}>
-              <td>{entry.date}</td>
-              <td>
-                {entry.narration} {entry.source !== 'manual' && <span className="tag">{entry.source}</span>}
+      <h3>Journal Register</h3>
+      {entries.length === 0 && <p className="empty-note">No entries posted yet.</p>}
+      <div className="voucher-list">
+        {entries.map((entry) => (
+          <div key={entry.id} className={`voucher-card ${entry.voided ? 'voided' : ''}`}>
+            <div className="voucher-header">
+              <div>
+                <span className="voucher-badge">{entry.number || SOURCE_LABELS[entry.source] || 'Entry'}</span>
+                <span className="voucher-date">{entry.date}</span>
+                {entry.number && entry.source !== 'manual' && <span className="tag">{SOURCE_LABELS[entry.source] || entry.source}</span>}
                 {entry.voided && <span className="tag tag-void">voided</span>}
-              </td>
-              <td>
+              </div>
+              <div className="voucher-amount">{money(sumLines(entry.lines, 'debit'))}</div>
+            </div>
+            <p className="voucher-narration">{entry.narration}</p>
+            <table className="voucher-table">
+              <tbody>
                 {entry.lines.map((line, i) => (
-                  <div key={i}>
-                    {accountName(line.accountId)}: {line.debit > 0 ? `Dr ${line.debit}` : `Cr ${line.credit}`}
-                  </div>
+                  <tr key={i}>
+                    <td>{accountName(line.accountId)}</td>
+                    <td className="amt">{line.debit > 0 ? money(line.debit) : ''}</td>
+                    <td className="amt">{line.credit > 0 ? money(line.credit) : ''}</td>
+                  </tr>
                 ))}
-              </td>
-              <td>{sumLines(entry.lines, 'debit').toFixed(2)}</td>
-              <td>
-                {entry.source === 'manual' && !entry.voided && (
-                  <button type="button" className="link-button" onClick={() => voidEntry(entry)}>Void</button>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              </tbody>
+            </table>
+            {entry.source === 'manual' && !entry.voided && (
+              <button type="button" className="link-button" onClick={() => voidEntry(entry)}>Void</button>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
