@@ -123,7 +123,7 @@ export default function App() {
           {tab === 'vendors' && <Vendors orgId={org.id} vendors={vendors} />}
           {tab === 'items' && <Items orgId={org.id} items={items} movements={stockMovements} />}
           {tab === 'ledger' && <Ledger accounts={accounts} entries={entries} />}
-          {tab === 'reports' && <Reports accounts={accounts} entries={entries} />}
+          {tab === 'reports' && <Reports accounts={accounts} entries={entries} invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} />}
           {tab === 'settings' && <Settings orgId={org.id} org={org} />}
         </main>
       </div>

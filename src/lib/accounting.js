@@ -338,3 +338,45 @@ export const stockOnHand = (item, movements) =>
     (Number(item.openingStock) || 0) +
       movements.filter((movement) => movement.itemId === item.id).reduce((total, movement) => total + (Number(movement.qty) || 0), 0),
   )
+
+const inRange = (docs, from, to) => docs.filter((doc) => !doc.voided && (!from || doc.date >= from) && (!to || doc.date <= to))
+const sumField = (docs, field) => round2(docs.reduce((total, doc) => total + (Number(doc[field]) || 0), 0))
+
+// A GSTR-1/GSTR-3B style summary for one period: output tax on sales (net
+// of credit notes issued) against input tax credit on purchases (net of
+// debit notes issued), per GST head - exactly what's needed to know what's
+// owed before filing, without a separate GST-return data model of its own.
+export const computeGstSummary = (invoices, bills, creditNotes, debitNotes, from, to) => {
+  const periodInvoices = inRange(invoices, from, to)
+  const periodBills = inRange(bills, from, to)
+  const periodCreditNotes = creditNotes.filter((note) => (!from || note.date >= from) && (!to || note.date <= to))
+  const periodDebitNotes = debitNotes.filter((note) => (!from || note.date >= from) && (!to || note.date <= to))
+
+  const sales = {
+    taxable: round2(sumField(periodInvoices, 'taxable') - sumField(periodCreditNotes, 'taxable')),
+    cgst: round2(sumField(periodInvoices, 'cgst') - sumField(periodCreditNotes, 'cgst')),
+    sgst: round2(sumField(periodInvoices, 'sgst') - sumField(periodCreditNotes, 'sgst')),
+    igst: round2(sumField(periodInvoices, 'igst') - sumField(periodCreditNotes, 'igst')),
+  }
+  const purchases = {
+    taxable: round2(sumField(periodBills, 'taxable') - sumField(periodDebitNotes, 'taxable')),
+    cgst: round2(sumField(periodBills, 'cgst') - sumField(periodDebitNotes, 'cgst')),
+    sgst: round2(sumField(periodBills, 'sgst') - sumField(periodDebitNotes, 'sgst')),
+    igst: round2(sumField(periodBills, 'igst') - sumField(periodDebitNotes, 'igst')),
+  }
+  const netPayable = {
+    cgst: round2(sales.cgst - purchases.cgst),
+    sgst: round2(sales.sgst - purchases.sgst),
+    igst: round2(sales.igst - purchases.igst),
+  }
+  const totalPayable = round2(netPayable.cgst + netPayable.sgst + netPayable.igst)
+
+  return {
+    sales,
+    purchases,
+    netPayable,
+    totalPayable,
+    invoiceCount: periodInvoices.length,
+    billCount: periodBills.length,
+  }
+}

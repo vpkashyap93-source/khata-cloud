@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { computeTrialBalance, computeProfitAndLoss, computeBalanceSheet } from '../lib/accounting.js'
+import { computeTrialBalance, computeProfitAndLoss, computeBalanceSheet, computeGstSummary } from '../lib/accounting.js'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const monthStart = () => `${today().slice(0, 7)}-01`
@@ -93,7 +93,62 @@ function BalanceSheet({ accounts, entries }) {
   )
 }
 
-export default function Reports({ accounts, entries }) {
+function GstSummary({ invoices, bills, creditNotes, debitNotes }) {
+  const [from, setFrom] = useState(monthStart())
+  const [to, setTo] = useState(today())
+  const { sales, purchases, netPayable, totalPayable, invoiceCount, billCount } = computeGstSummary(invoices, bills, creditNotes, debitNotes, from, to)
+  return (
+    <>
+      <div className="journal-header-row">
+        <label>From <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
+        <label>To <input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
+      </div>
+
+      <h3>Output tax - Sales ({invoiceCount} invoice{invoiceCount === 1 ? '' : 's'}, net of credit notes)</h3>
+      <table>
+        <thead><tr><th>Taxable value</th><th className="amt">CGST</th><th className="amt">SGST</th><th className="amt">IGST</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>{sales.taxable.toFixed(2)}</td>
+            <td className="amt">{sales.cgst.toFixed(2)}</td>
+            <td className="amt">{sales.sgst.toFixed(2)}</td>
+            <td className="amt">{sales.igst.toFixed(2)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Input tax credit - Purchases ({billCount} bill{billCount === 1 ? '' : 's'}, net of debit notes)</h3>
+      <table>
+        <thead><tr><th>Taxable value</th><th className="amt">CGST</th><th className="amt">SGST</th><th className="amt">IGST</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>{purchases.taxable.toFixed(2)}</td>
+            <td className="amt">{purchases.cgst.toFixed(2)}</td>
+            <td className="amt">{purchases.sgst.toFixed(2)}</td>
+            <td className="amt">{purchases.igst.toFixed(2)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Net GST payable</h3>
+      <table>
+        <thead><tr><th className="amt">CGST</th><th className="amt">SGST</th><th className="amt">IGST</th></tr></thead>
+        <tbody>
+          <tr>
+            <td className="amt">{netPayable.cgst.toFixed(2)}</td>
+            <td className="amt">{netPayable.sgst.toFixed(2)}</td>
+            <td className="amt">{netPayable.igst.toFixed(2)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p className="grand-total">
+        {totalPayable >= 0 ? `Total payable: ${totalPayable.toFixed(2)}` : `Credit carried forward: ${Math.abs(totalPayable).toFixed(2)}`}
+      </p>
+    </>
+  )
+}
+
+export default function Reports({ accounts, entries, invoices, bills, creditNotes, debitNotes }) {
   const [tab, setTab] = useState('trial')
   return (
     <div className="panel">
@@ -102,10 +157,12 @@ export default function Reports({ accounts, entries }) {
         <button className={tab === 'trial' ? 'active' : ''} onClick={() => setTab('trial')}>Trial Balance</button>
         <button className={tab === 'pnl' ? 'active' : ''} onClick={() => setTab('pnl')}>Profit &amp; Loss</button>
         <button className={tab === 'bs' ? 'active' : ''} onClick={() => setTab('bs')}>Balance Sheet</button>
+        <button className={tab === 'gst' ? 'active' : ''} onClick={() => setTab('gst')}>GST Summary</button>
       </div>
       {tab === 'trial' && <TrialBalance accounts={accounts} entries={entries} />}
       {tab === 'pnl' && <ProfitAndLoss accounts={accounts} entries={entries} />}
       {tab === 'bs' && <BalanceSheet accounts={accounts} entries={entries} />}
+      {tab === 'gst' && <GstSummary invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} />}
     </div>
   )
 }

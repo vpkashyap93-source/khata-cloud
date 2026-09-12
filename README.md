@@ -44,8 +44,10 @@ Balance Sheet reports - all backed by Firebase, in real time.
   available before any payment or note has been recorded against a
   document (`canVoid`).
 - **Reports**: computed on the client from the live journal entries -
-  Trial Balance, date-ranged Profit & Loss, and an as-of-date Balance
-  Sheet (`src/lib/accounting.js`).
+  Trial Balance, date-ranged Profit & Loss, an as-of-date Balance
+  Sheet, and a GSTR-style GST Summary (output tax on sales net of
+  credit notes, against input tax credit on purchases net of debit
+  notes, netted per GST head) (`src/lib/accounting.js`).
 
 ## Run locally
 
@@ -68,5 +70,6 @@ to "GitHub Actions" once, the first time).
 
 - Inviting additional team members into an existing org (each signup
   currently gets its own single-owner org).
-- GSTR-1/GSTR-3B return summaries, and bank reconciliation.
+- Actually filing GST returns (the GST Summary report covers what's
+  owed; filing itself is out of scope), and bank reconciliation.
 - Exporting reports to PDF/Excel (invoices/bills do have a print view).
