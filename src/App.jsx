@@ -46,6 +46,22 @@ export default function App() {
   const [tab, setTab] = useState('dashboard')
   const [navOpen, setNavOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [theme, setTheme] = useState(() => {
+    try {
+      return localStorage.getItem('khata-theme') || 'light'
+    } catch {
+      return 'light'
+    }
+  })
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    try {
+      localStorage.setItem('khata-theme', theme)
+    } catch {
+      // ignore - private browsing / storage disabled
+    }
+  }, [theme])
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -132,6 +148,13 @@ export default function App() {
             <Icon name="search" size={15} />
             <span className="search-trigger-label">Search</span>
             <span className="search-trigger-kbd">Ctrl K</span>
+          </button>
+          <button
+            className="theme-toggle"
+            onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={16} />
           </button>
           <span className="org-name">
             <span className="org-avatar">{(org.name || '?').charAt(0).toUpperCase()}</span>

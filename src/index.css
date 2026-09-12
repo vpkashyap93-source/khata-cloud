@@ -21,6 +21,9 @@
   --amber-bg: #fdf1e0;
   --red: #dc2626;
   --red-bg: #fde8e8;
+  --input-bg: #ffffff;
+  --th-bg: #fafbfd;
+  --row-hover-bg: #fafbfe;
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
@@ -29,6 +32,39 @@
   --shadow-lg: 0 12px 32px rgba(20, 29, 51, 0.1), 0 2px 6px rgba(20, 29, 51, 0.05);
   --shadow-focus: 0 0 0 3px rgba(37, 84, 199, 0.15);
   color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --accent: #5b8cff;
+  --accent-light: #7ba3ff;
+  --accent-dark: #3d68d6;
+  --accent-grad: linear-gradient(135deg, #5b8cff 0%, #3d68d6 100%);
+  --sidebar-bg: #070b16;
+  --sidebar-bg-grad: linear-gradient(180deg, #0b1122 0%, #05080f 100%);
+  --sidebar-text: #8b96b8;
+  --sidebar-active-bg: #16203a;
+  --bg: #0e1320;
+  --panel: #161d2e;
+  --border: #2a3350;
+  --ink: #e7eaf3;
+  --muted: #8b93ad;
+  --green: #4ade80;
+  --green-bg: rgba(74, 222, 128, 0.14);
+  --orange: #fb923c;
+  --orange-bg: rgba(251, 146, 60, 0.14);
+  --blue-bg: rgba(91, 140, 255, 0.16);
+  --amber: #fbbf24;
+  --amber-bg: rgba(251, 191, 36, 0.14);
+  --red: #f87171;
+  --red-bg: rgba(248, 113, 113, 0.14);
+  --input-bg: #1b2338;
+  --th-bg: #18213a;
+  --row-hover-bg: #1a2340;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-focus: 0 0 0 3px rgba(91, 140, 255, 0.25);
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -54,14 +90,16 @@ button:active { transform: translateY(1px); }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(20, 29, 51, 0.16); border-radius: 8px; border: 2px solid var(--bg); }
 ::-webkit-scrollbar-thumb:hover { background: rgba(20, 29, 51, 0.28); }
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.14); }
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.24); }
 
-input, select {
+input, select, textarea {
   font-family: inherit;
   font-size: 0.95rem;
   padding: 8px 11px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: #fff;
+  background: var(--input-bg);
   color: var(--ink);
   transition: border-color .15s ease, box-shadow .15s ease;
 }
@@ -75,10 +113,10 @@ table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; }
 th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
 th {
   font-size: 0.72rem; text-transform: uppercase; letter-spacing: .04em; font-weight: 700;
-  color: var(--muted); background: #fafbfd; border-bottom: 1px solid var(--border);
+  color: var(--muted); background: var(--th-bg); border-bottom: 1px solid var(--border);
 }
 tbody tr { transition: background .12s ease; }
-tbody tr:hover { background: #fafbfe; }
+tbody tr:hover { background: var(--row-hover-bg); }
 tfoot td { font-weight: 700; border-top: 2px solid var(--ink); border-bottom: none; }
 
 .loading-screen, .auth-screen {
@@ -286,7 +324,7 @@ tfoot td { font-weight: 700; border-top: 2px solid var(--ink); border-bottom: no
 .chart-axis-label { font-size: 10px; fill: var(--muted); font-family: "IBM Plex Mono", monospace; }
 .chart-area { fill: var(--accent); opacity: 0.08; }
 .chart-line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.chart-dot { fill: var(--accent); stroke: #fff; stroke-width: 2; }
+.chart-dot { fill: var(--accent); stroke: var(--panel); stroke-width: 2; }
 .chart-point-label { font-size: 11px; font-weight: 600; fill: var(--ink); font-family: "IBM Plex Mono", monospace; }
 .bar-income { fill: var(--green); }
 .bar-expense { fill: var(--orange); }
@@ -407,6 +445,14 @@ table.voucher-table td:first-child { color: var(--muted); }
   border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; display: none;
 }
 @media (min-width: 640px) { .search-trigger-kbd { display: inline; } }
+
+.theme-toggle {
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; flex-shrink: 0;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 50%;
+  color: var(--muted); margin-left: 8px;
+}
+.theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
 
 .palette-overlay {
   position: fixed; inset: 0; z-index: 60; background: rgba(10, 16, 32, 0.55);

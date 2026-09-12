@@ -58,6 +58,12 @@ Balance Sheet reports - all backed by Firebase, in real time.
   searched client-side against the same live data every screen already
   renders from, with full keyboard navigation
   (`src/components/CommandPalette.jsx`).
+- **Dark mode**: the sun/moon toggle in the topbar switches every
+  screen between light and dark instantly - the whole design is built
+  on CSS custom properties (`src/index.css`), so a single
+  `data-theme="dark"` attribute on `<html>` re-themes colors, shadows,
+  and inputs everywhere at once. The choice is remembered in
+  `localStorage` and restored on the next visit.
 
 ## Run locally
 
