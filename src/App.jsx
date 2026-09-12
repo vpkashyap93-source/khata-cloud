@@ -53,6 +53,7 @@ export default function App() {
       return 'light'
     }
   })
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine))
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -62,6 +63,17 @@ export default function App() {
       // ignore - private browsing / storage disabled
     }
   }, [theme])
+
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true)
+    const goOffline = () => setIsOnline(false)
+    window.addEventListener('online', goOnline)
+    window.addEventListener('offline', goOffline)
+    return () => {
+      window.removeEventListener('online', goOnline)
+      window.removeEventListener('offline', goOffline)
+    }
+  }, [])
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -141,6 +153,12 @@ export default function App() {
       </aside>
 
       <div className="app-body">
+        {!isOnline && (
+          <div className="offline-banner">
+            <Icon name="offline" size={14} />
+            You're offline - showing last synced data. Changes will sync automatically once you're back online.
+          </div>
+        )}
         <header className="topbar">
           <button className="nav-toggle" onClick={() => setNavOpen((open) => !open)} aria-label="Toggle menu">☰</button>
           <h1>{currentLabel}</h1>

@@ -1,6 +1,9 @@
 import { initializeApp } from 'firebase/app'
 import {
   getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   doc,
   getDoc,
   setDoc,
@@ -39,7 +42,18 @@ let db = null
 let auth = null
 if (isFirebaseConfigured) {
   const app = initializeApp(firebaseConfig)
-  db = getFirestore(app)
+  // Persistent local cache: reads keep working offline (last synced data),
+  // and writes queue in IndexedDB and flush automatically on reconnect -
+  // no separate "offline mode" to build, Firestore just does it. Falls back
+  // to the plain in-memory client if IndexedDB isn't available (e.g. some
+  // private-browsing modes).
+  try {
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    })
+  } catch {
+    db = getFirestore(app)
+  }
   auth = getAuth(app)
 }
 

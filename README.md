@@ -64,6 +64,15 @@ Balance Sheet reports - all backed by Firebase, in real time.
   `data-theme="dark"` attribute on `<html>` re-themes colors, shadows,
   and inputs everywhere at once. The choice is remembered in
   `localStorage` and restored on the next visit.
+- **Offline support**: Firestore's persistent local cache
+  (`initializeFirestore` with `persistentLocalCache` in `src/firebase.js`)
+  keeps the last-synced data readable with no connection, and queues
+  any invoice, bill, or journal entry you save offline to sync
+  automatically once you're back - a banner in the topbar says so
+  while it's happening. The app itself is installable and loads with
+  no connection too, via a manifest (`public/manifest.webmanifest`)
+  and a small same-origin-only service worker (`public/sw.js`) that
+  never touches Firebase/Auth traffic.
 
 ## Run locally
 

@@ -585,6 +585,13 @@ table.voucher-table td:first-child { color: var(--muted); }
   font-size: 0.7rem; font-weight: 700; margin-right: 8px; flex-shrink: 0;
 }
 
+/* ---- Offline banner ---- */
+.offline-banner {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--amber-bg); color: var(--amber); font-size: 0.82rem; font-weight: 500;
+  padding: 8px 28px; border-bottom: 1px solid var(--border);
+}
+
 /* ---- Settings ---- */
 .save-confirm {
   display: inline-flex; align-items: center; gap: 6px;
