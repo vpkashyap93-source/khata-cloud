@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { validateJournalLines, sumLines, reverseLines } from '../lib/accounting.js'
 import { addOrgDoc, setOrgDoc } from '../firebase.js'
+import Icon from './icons.jsx'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const blankLine = () => ({ accountId: '', debit: '', credit: '' })
@@ -13,6 +14,16 @@ const SOURCE_LABELS = {
   'credit-note': 'Credit Note',
   'debit-note': 'Debit Note',
   void: 'Void',
+}
+
+const SOURCE_ICONS = {
+  manual: 'journal',
+  invoice: 'invoices',
+  bill: 'bills',
+  payment: 'payment',
+  'credit-note': 'note',
+  'debit-note': 'note',
+  void: 'void',
 }
 
 export default function JournalEntries({ orgId, accounts, entries }) {
@@ -158,16 +169,35 @@ export default function JournalEntries({ orgId, accounts, entries }) {
       </form>
 
       <h3>Journal Register</h3>
+      {entries.length > 0 && (
+        <div className="ledger-stats" style={{ marginBottom: 16 }}>
+          <div className="stat-chip">
+            <div className="stat-chip-label">Entries</div>
+            <div className="stat-chip-value">{entries.length}</div>
+          </div>
+          <div className="stat-chip">
+            <div className="stat-chip-label">Total Debit</div>
+            <div className="stat-chip-value">{money(entries.reduce((total, entry) => total + sumLines(entry.lines, 'debit'), 0))}</div>
+          </div>
+          <div className="stat-chip">
+            <div className="stat-chip-label">Total Credit</div>
+            <div className="stat-chip-value">{money(entries.reduce((total, entry) => total + sumLines(entry.lines, 'credit'), 0))}</div>
+          </div>
+        </div>
+      )}
       {entries.length === 0 && <p className="empty-note">No entries posted yet.</p>}
       <div className="voucher-list">
         {entries.map((entry) => (
           <div key={entry.id} className={`voucher-card ${entry.voided ? 'voided' : ''}`}>
             <div className="voucher-header">
-              <div>
-                <span className="voucher-badge">{entry.number || SOURCE_LABELS[entry.source] || 'Entry'}</span>
-                <span className="voucher-date">{entry.date}</span>
-                {entry.number && entry.source !== 'manual' && <span className="tag">{SOURCE_LABELS[entry.source] || entry.source}</span>}
-                {entry.voided && <span className="tag tag-void">voided</span>}
+              <div className="voucher-header-main">
+                <div className={`voucher-icon src-${entry.source}`}><Icon name={SOURCE_ICONS[entry.source] || 'journal'} size={15} /></div>
+                <div className="voucher-header-text">
+                  <span className="voucher-badge">{entry.number || SOURCE_LABELS[entry.source] || 'Entry'}</span>
+                  <span className="voucher-date">{entry.date}</span>
+                  {entry.number && entry.source !== 'manual' && <span className="tag">{SOURCE_LABELS[entry.source] || entry.source}</span>}
+                  {entry.voided && <span className="tag tag-void">voided</span>}
+                </div>
               </div>
               <div className="voucher-amount">{money(sumLines(entry.lines, 'debit'))}</div>
             </div>
@@ -184,7 +214,9 @@ export default function JournalEntries({ orgId, accounts, entries }) {
               </tbody>
             </table>
             {entry.source === 'manual' && !entry.voided && (
-              <button type="button" className="link-button" onClick={() => voidEntry(entry)}>Void</button>
+              <div className="action-pills">
+                <button type="button" className="action-pill danger" onClick={() => voidEntry(entry)}><Icon name="void" size={13} />Void</button>
+              </div>
             )}
           </div>
         ))}

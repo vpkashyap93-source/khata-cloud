@@ -4,6 +4,16 @@ import Icon from './icons.jsx'
 const money = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
 const monthLabel = (key) => new Date(`${key}-01`).toLocaleDateString('en-IN', { month: 'short' })
 
+const SOURCE_ICONS = {
+  manual: 'journal',
+  invoice: 'invoices',
+  bill: 'bills',
+  payment: 'payment',
+  'credit-note': 'note',
+  'debit-note': 'note',
+  void: 'void',
+}
+
 function KpiCard({ label, value, tone, sub, icon }) {
   return (
     <div className={`kpi-card kpi-${tone}`}>
@@ -37,12 +47,18 @@ function CashTrendChart({ points }) {
   const last = points[points.length - 1]
   return (
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Cash position trend, currently ${money(last.balance)}`}>
+      <defs>
+        <linearGradient id="cashAreaGradient" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#2554c7" stopOpacity="0.22" />
+          <stop offset="100%" stopColor="#2554c7" stopOpacity="0" />
+        </linearGradient>
+      </defs>
       <line x1={padding.left} y1={padding.top} x2={width - padding.right} y2={padding.top} className="chart-grid" />
       <line x1={padding.left} y1={padding.top + plotHeight / 2} x2={width - padding.right} y2={padding.top + plotHeight / 2} className="chart-grid" />
       <line x1={padding.left} y1={padding.top + plotHeight} x2={width - padding.right} y2={padding.top + plotHeight} className="chart-grid" />
       <text x={padding.left - 8} y={padding.top + 4} textAnchor="end" className="chart-axis-label">{money(max)}</text>
       <text x={padding.left - 8} y={padding.top + plotHeight + 4} textAnchor="end" className="chart-axis-label">{money(min)}</text>
-      <path d={areaPath} className="chart-area" />
+      <path d={areaPath} fill="url(#cashAreaGradient)" />
       <path d={linePath} className="chart-line" />
       <circle cx={xFor(points.length - 1)} cy={yFor(last.balance)} r="4.5" className="chart-dot" />
       <text
@@ -140,10 +156,10 @@ export default function Dashboard({ accounts, entries, invoices, bills }) {
         <div className="dash-card">
           <div className="dash-card-head"><h3>Top expenses</h3><span className="dash-card-sub">All time</span></div>
           {topExpenses.length === 0 && <p className="empty-note">No expenses posted yet.</p>}
-          {topExpenses.map((row) => (
+          {topExpenses.map((row, index) => (
             <div className="expense-row" key={row.account.id}>
               <div className="expense-row-head">
-                <span>{row.account.name}</span>
+                <span><span className="rank-badge">{index + 1}</span>{row.account.name}</span>
                 <span>{money(row.amount)}</span>
               </div>
               <div className="expense-bar-track">
@@ -183,7 +199,15 @@ export default function Dashboard({ accounts, entries, invoices, bills }) {
                 {recent.map((entry) => (
                   <tr key={entry.id}>
                     <td>{entry.date}</td>
-                    <td>{entry.narration}<div className="recent-sub">{entry.lines.map((line) => accountName(line.accountId)).join(' → ')}</div></td>
+                    <td>
+                      <div className="recent-row-head">
+                        <div className={`recent-icon src-${entry.source}`}><Icon name={SOURCE_ICONS[entry.source] || 'journal'} size={13} /></div>
+                        <div>
+                          {entry.narration}
+                          <div className="recent-sub">{entry.lines.map((line) => accountName(line.accountId)).join(' → ')}</div>
+                        </div>
+                      </div>
+                    </td>
                     <td className="amt">{money(entry.lines.reduce((total, line) => total + (Number(line.debit) || 0), 0))}</td>
                   </tr>
                 ))}
