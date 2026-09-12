@@ -97,6 +97,34 @@ export const buildBillJournalLines = (accounts, { taxable, cgst, sgst, igst, tot
   return lines
 }
 
+// A credit note reverses part of a sale - a return, a discount, a billing
+// correction. It reduces what the customer owes (Accounts Receivable) and
+// un-books the matching revenue and GST, the mirror image of the invoice.
+export const buildCreditNoteJournalLines = (accounts, { taxable, cgst, sgst, igst, total }) => {
+  const receivableId = findAccountId(accounts, 'Accounts Receivable')
+  const salesId = findAccountId(accounts, 'Sales Revenue')
+  const gstId = findAccountId(accounts, 'GST Payable')
+  const lines = [{ accountId: salesId, debit: taxable, credit: 0 }]
+  const tax = round2(cgst + sgst + igst)
+  if (tax > 0) lines.push({ accountId: gstId, debit: tax, credit: 0 })
+  lines.push({ accountId: receivableId, debit: 0, credit: total })
+  return lines
+}
+
+// A debit note reverses part of a purchase - a return to the vendor. It
+// reduces what's owed to the vendor (Accounts Payable) and un-books the
+// matching purchase and input GST credit, the mirror image of the bill.
+export const buildDebitNoteJournalLines = (accounts, { taxable, cgst, sgst, igst, total }) => {
+  const payableId = findAccountId(accounts, 'Accounts Payable')
+  const purchasesId = findAccountId(accounts, 'Purchases')
+  const gstInputId = findAccountId(accounts, 'Input GST Credit')
+  const lines = [{ accountId: payableId, debit: total, credit: 0 }]
+  lines.push({ accountId: purchasesId, debit: 0, credit: taxable })
+  const tax = round2(cgst + sgst + igst)
+  if (tax > 0) lines.push({ accountId: gstInputId, debit: 0, credit: tax })
+  return lines
+}
+
 // Records money actually changing hands against an already-posted invoice
 // or bill: a customer payment clears Accounts Receivable into Cash/Bank; a
 // vendor payment clears Cash/Bank into Accounts Payable.
@@ -249,14 +277,23 @@ export const topExpenseAccounts = (accounts, entries, limit = 5) =>
     .slice(0, limit)
 
 // Balance still owed on an invoice or bill, and whether that makes it
-// paid / partially paid / unpaid.
+// paid / partially paid / unpaid. `adjustedAmount` is whatever credit
+// notes (against an invoice) or debit notes (against a bill) have already
+// written off, so a partly-returned sale doesn't look like it's still
+// fully owed.
 export const balanceDue = (doc) => {
   const total = Number(doc.total) || 0
   const paid = Number(doc.amountPaid) || 0
-  const due = round2(total - paid)
+  const adjusted = Number(doc.adjustedAmount) || 0
+  const due = round2(total - paid - adjusted)
   const status = due <= 0 ? 'paid' : paid > 0 ? 'partial' : 'unpaid'
-  return { total, paid, due, status }
+  return { total, paid, adjusted, due, status }
 }
+
+// How much of a document's value is still available to be credited/debited
+// against - a credit note can't return more than what's left after any
+// earlier credit notes on the same invoice.
+export const creditableAmount = (doc) => round2((Number(doc.total) || 0) - (Number(doc.adjustedAmount) || 0))
 
 // Paid / unpaid / overdue counts and amounts across a set of invoices (or
 // bills) - anything still owed after 30 days counts as overdue.
@@ -279,3 +316,12 @@ export const invoiceStats = (invoices, today = new Date()) => {
   })
   return stats
 }
+
+// Current stock on hand for one tracked item: its opening stock plus every
+// movement against it - sales go out (negative), purchases and manual
+// adjustments go however they're signed.
+export const stockOnHand = (item, movements) =>
+  round2(
+    (Number(item.openingStock) || 0) +
+      movements.filter((movement) => movement.itemId === item.id).reduce((total, movement) => total + (Number(movement.qty) || 0), 0),
+  )

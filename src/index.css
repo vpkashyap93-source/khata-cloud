@@ -175,7 +175,7 @@ tfoot td { font-weight: 700; border-top: 2px solid var(--ink); border-bottom: no
 .journal-header-row label.grow { flex: 1; }
 .checkbox-label { flex-direction: row !important; align-items: center; gap: 6px !important; }
 
-.link-button { background: none; border: none; color: var(--accent); padding: 4px 0; font-size: 0.85rem; text-align: left; }
+.link-button { background: none; border: none; color: var(--accent); padding: 4px 0; margin-right: 10px; font-size: 0.85rem; text-align: left; }
 .form-error { color: var(--red); font-size: 0.85rem; margin: 0; }
 .mismatch { color: var(--red); }
 .grand-total { font-weight: 700; font-size: 1.05rem; }

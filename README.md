@@ -28,6 +28,15 @@ Balance Sheet reports - all backed by Firebase, in real time.
   to Customers/Vendors automatically.
 - **Business Settings**: company name, GSTIN, address and invoice/bill
   numbering, used as the letterhead on every printable invoice and bill.
+- **Credit &amp; debit notes**: a return or correction against a posted
+  invoice ("Credit Note") or bill ("Debit Note"), taxed at the original
+  document's own GST rate and capped at what's left of it
+  (`buildCreditNoteJournalLines` / `buildDebitNoteJournalLines`,
+  `creditableAmount`).
+- **Inventory**: a goods item can opt into stock tracking with an
+  opening balance; every sale, purchase, and manual adjustment posts a
+  stock movement, netting out to a live stock-on-hand figure
+  (`stockOnHand`).
 - **Reports**: computed on the client from the live journal entries -
   Trial Balance, date-ranged Profit & Loss, and an as-of-date Balance
   Sheet (`src/lib/accounting.js`).

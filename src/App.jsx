@@ -36,6 +36,9 @@ export default function App() {
   const [customers, setCustomers] = useState([])
   const [vendors, setVendors] = useState([])
   const [items, setItems] = useState([])
+  const [creditNotes, setCreditNotes] = useState([])
+  const [debitNotes, setDebitNotes] = useState([])
+  const [stockMovements, setStockMovements] = useState([])
   const [tab, setTab] = useState('dashboard')
   const [navOpen, setNavOpen] = useState(false)
 
@@ -65,6 +68,9 @@ export default function App() {
       watchOrgCollection(org.id, 'customers', setCustomers, 'name'),
       watchOrgCollection(org.id, 'vendors', setVendors, 'name'),
       watchOrgCollection(org.id, 'items', setItems, 'name'),
+      watchOrgCollection(org.id, 'creditNotes', setCreditNotes, 'date'),
+      watchOrgCollection(org.id, 'debitNotes', setDebitNotes, 'date'),
+      watchOrgCollection(org.id, 'stockMovements', setStockMovements, 'date'),
     ]
     return () => unsubs.forEach((unsub) => unsub())
   }, [org])
@@ -111,11 +117,11 @@ export default function App() {
           {tab === 'dashboard' && <Dashboard accounts={accounts} entries={entries} invoices={invoices} bills={bills} />}
           {tab === 'accounts' && <ChartOfAccounts orgId={org.id} accounts={accounts} />}
           {tab === 'journal' && <JournalEntries orgId={org.id} accounts={accounts} entries={entries} />}
-          {tab === 'invoices' && <Invoices orgId={org.id} accounts={accounts} invoices={invoices} customers={customers} items={items} org={org} />}
-          {tab === 'bills' && <Bills orgId={org.id} accounts={accounts} bills={bills} vendors={vendors} items={items} org={org} />}
+          {tab === 'invoices' && <Invoices orgId={org.id} accounts={accounts} invoices={invoices} customers={customers} items={items} creditNotes={creditNotes} org={org} />}
+          {tab === 'bills' && <Bills orgId={org.id} accounts={accounts} bills={bills} vendors={vendors} items={items} debitNotes={debitNotes} org={org} />}
           {tab === 'customers' && <Customers orgId={org.id} customers={customers} />}
           {tab === 'vendors' && <Vendors orgId={org.id} vendors={vendors} />}
-          {tab === 'items' && <Items orgId={org.id} items={items} />}
+          {tab === 'items' && <Items orgId={org.id} items={items} movements={stockMovements} />}
           {tab === 'ledger' && <Ledger accounts={accounts} entries={entries} />}
           {tab === 'reports' && <Reports accounts={accounts} entries={entries} />}
           {tab === 'settings' && <Settings orgId={org.id} org={org} />}
