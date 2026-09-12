@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ACCOUNT_TYPES } from '../lib/accounting.js'
 import { addOrgDoc } from '../firebase.js'
+import Icon from './icons.jsx'
 
 export default function ChartOfAccounts({ orgId, accounts }) {
   const [name, setName] = useState('')
@@ -39,14 +40,18 @@ export default function ChartOfAccounts({ orgId, accounts }) {
         const rows = accounts.filter((account) => account.type === groupType.value)
         if (rows.length === 0) return null
         return (
-          <div key={groupType.value} className="account-group">
-            <h3>{groupType.label}</h3>
+          <div key={groupType.value} className={`account-type-card type-${groupType.value}`}>
+            <div className="account-type-head">
+              <div className="account-type-icon"><Icon name={groupType.value} size={17} /></div>
+              <h3>{groupType.label}</h3>
+              <span className="account-type-count">{rows.length}</span>
+            </div>
             <table>
               <thead><tr><th>Code</th><th>Name</th></tr></thead>
               <tbody>
                 {rows.map((account) => (
                   <tr key={account.id}>
-                    <td>{account.code || '-'}</td>
+                    <td className="account-code">{account.code || '-'}</td>
                     <td>{account.name}</td>
                   </tr>
                 ))}

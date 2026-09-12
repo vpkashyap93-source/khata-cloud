@@ -13,6 +13,7 @@ import {
   round2,
 } from '../lib/accounting.js'
 import { addOrgDoc, setOrgDoc } from '../firebase.js'
+import Icon from './icons.jsx'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const blankItem = () => ({ description: '', qty: 1, rate: '', itemId: null })
@@ -365,16 +366,18 @@ function DocumentForm({ orgId, accounts, documents, contacts, items, notes, entr
                 <td className="amt">{due.toFixed(2)}</td>
                 <td><span className={`status-pill ${pillClass}`}>{status}</span></td>
                 <td>
-                  <button type="button" className="link-button" onClick={() => setPrintingDoc(item)}>Print</button>
-                  {!item.voided && status !== 'paid' && payingId !== item.id && (
-                    <button type="button" className="link-button" onClick={() => setPayingId(item.id)}>Record payment</button>
-                  )}
-                  {canNote && notingId !== item.id && (
-                    <button type="button" className="link-button" onClick={() => setNotingId(item.id)}>{config.noteLabel}</button>
-                  )}
-                  {canVoid(item) && (
-                    <button type="button" className="link-button" onClick={() => voidDocument(item)}>Void</button>
-                  )}
+                  <div className="action-pills">
+                    <button type="button" className="action-pill" onClick={() => setPrintingDoc(item)}><Icon name="print" size={13} />Print</button>
+                    {!item.voided && status !== 'paid' && payingId !== item.id && (
+                      <button type="button" className="action-pill success" onClick={() => setPayingId(item.id)}><Icon name="payment" size={13} />Record payment</button>
+                    )}
+                    {canNote && notingId !== item.id && (
+                      <button type="button" className="action-pill info" onClick={() => setNotingId(item.id)}><Icon name="note" size={13} />{config.noteLabel}</button>
+                    )}
+                    {canVoid(item) && (
+                      <button type="button" className="action-pill danger" onClick={() => voidDocument(item)}><Icon name="void" size={13} />Void</button>
+                    )}
+                  </div>
                 </td>
               </tr>
             )
