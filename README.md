@@ -52,6 +52,12 @@ Balance Sheet reports - all backed by Firebase, in real time.
   Sheet, and a GSTR-style GST Summary (output tax on sales net of
   credit notes, against input tax credit on purchases net of debit
   notes, netted per GST head) (`src/lib/accounting.js`).
+- **Command Palette**: press Ctrl/Cmd+K (or tap Search in the topbar)
+  to jump anywhere or find anything instantly - invoices, bills,
+  estimates, customers, vendors, items, accounts, and journal entries,
+  searched client-side against the same live data every screen already
+  renders from, with full keyboard navigation
+  (`src/components/CommandPalette.jsx`).
 
 ## Run locally
 

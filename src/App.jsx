@@ -12,6 +12,7 @@ import Settings from './components/Settings.jsx'
 import Ledger from './components/Ledger.jsx'
 import Reports from './components/Reports.jsx'
 import Icon from './components/icons.jsx'
+import CommandPalette from './components/CommandPalette.jsx'
 
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -44,6 +45,18 @@ export default function App() {
   const [estimates, setEstimates] = useState([])
   const [tab, setTab] = useState('dashboard')
   const [navOpen, setNavOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setPaletteOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   useEffect(() => watchAuthState((nextUser) => {
     setUser(nextUser)
@@ -115,6 +128,11 @@ export default function App() {
         <header className="topbar">
           <button className="nav-toggle" onClick={() => setNavOpen((open) => !open)} aria-label="Toggle menu">☰</button>
           <h1>{currentLabel}</h1>
+          <button className="search-trigger" onClick={() => setPaletteOpen(true)}>
+            <Icon name="search" size={15} />
+            <span className="search-trigger-label">Search</span>
+            <span className="search-trigger-kbd">Ctrl K</span>
+          </button>
           <span className="org-name">{org.name}</span>
         </header>
         <main className="app-main">
@@ -132,6 +150,14 @@ export default function App() {
           {tab === 'settings' && <Settings orgId={org.id} org={org} />}
         </main>
       </div>
+
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        onNavigate={selectTab}
+        nav={NAV}
+        data={{ accounts, entries, invoices, bills, estimates, customers, vendors, items }}
+      />
     </div>
   )
 }
