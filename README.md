@@ -22,6 +22,10 @@ Balance Sheet reports - all backed by Firebase, in real time.
   received or paid is recorded afterwards, separately, via "Record
   payment" (`buildPaymentJournalLines`) - so partial payments and an
   accurate balance-due are tracked correctly, the way real books work.
+- **Estimates**: a quote with the same party/items/GST shape as a Sales
+  Invoice, but no accounting effect of its own - "Convert to Invoice"
+  posts the real invoice and journal entry (reusing
+  `buildInvoiceJournalLines` directly) only once the customer accepts.
 - **Customers, Vendors, Items**: reusable contact and product/service
   catalogs (with HSN/SAC codes and default rates) that invoices and
   bills pick from - typing a new party name on an invoice also adds it

@@ -5,6 +5,7 @@ import Dashboard from './components/Dashboard.jsx'
 import ChartOfAccounts from './components/ChartOfAccounts.jsx'
 import JournalEntries from './components/JournalEntries.jsx'
 import { Invoices, Bills } from './components/Invoicing.jsx'
+import Estimates from './components/Estimates.jsx'
 import { Customers, Vendors } from './components/Contacts.jsx'
 import Items from './components/Items.jsx'
 import Settings from './components/Settings.jsx'
@@ -16,6 +17,7 @@ const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
   { id: 'accounts', label: 'Chart of Accounts', icon: 'accounts' },
   { id: 'journal', label: 'Journal', icon: 'journal' },
+  { id: 'estimates', label: 'Estimates', icon: 'estimates' },
   { id: 'invoices', label: 'Sales Invoices', icon: 'invoices' },
   { id: 'bills', label: 'Purchase Bills', icon: 'bills' },
   { id: 'customers', label: 'Customers', icon: 'customers' },
@@ -39,6 +41,7 @@ export default function App() {
   const [creditNotes, setCreditNotes] = useState([])
   const [debitNotes, setDebitNotes] = useState([])
   const [stockMovements, setStockMovements] = useState([])
+  const [estimates, setEstimates] = useState([])
   const [tab, setTab] = useState('dashboard')
   const [navOpen, setNavOpen] = useState(false)
 
@@ -71,6 +74,7 @@ export default function App() {
       watchOrgCollection(org.id, 'creditNotes', setCreditNotes, 'date'),
       watchOrgCollection(org.id, 'debitNotes', setDebitNotes, 'date'),
       watchOrgCollection(org.id, 'stockMovements', setStockMovements, 'date'),
+      watchOrgCollection(org.id, 'estimates', setEstimates, 'date'),
     ]
     return () => unsubs.forEach((unsub) => unsub())
   }, [org])
@@ -117,6 +121,7 @@ export default function App() {
           {tab === 'dashboard' && <Dashboard accounts={accounts} entries={entries} invoices={invoices} bills={bills} />}
           {tab === 'accounts' && <ChartOfAccounts orgId={org.id} accounts={accounts} />}
           {tab === 'journal' && <JournalEntries orgId={org.id} accounts={accounts} entries={entries} />}
+          {tab === 'estimates' && <Estimates orgId={org.id} accounts={accounts} estimates={estimates} invoices={invoices} customers={customers} items={items} org={org} />}
           {tab === 'invoices' && <Invoices orgId={org.id} accounts={accounts} invoices={invoices} customers={customers} items={items} creditNotes={creditNotes} entries={entries} org={org} />}
           {tab === 'bills' && <Bills orgId={org.id} accounts={accounts} bills={bills} vendors={vendors} items={items} debitNotes={debitNotes} entries={entries} org={org} />}
           {tab === 'customers' && <Customers orgId={org.id} customers={customers} />}
