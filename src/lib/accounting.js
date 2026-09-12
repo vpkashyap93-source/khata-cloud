@@ -54,6 +54,12 @@ export const validateJournalLines = (lines) => {
   return { valid: true, totalDebit, totalCredit, lines: activeLines }
 }
 
+// The exact opposite of a set of journal lines - swap every debit for a
+// credit and back. Posting this as a new entry cancels the original out of
+// every balance, ledger, and report without ever rewriting history: void
+// is a correction, not a deletion.
+export const reverseLines = (lines) => lines.map((line) => ({ accountId: line.accountId, debit: line.credit, credit: line.debit }))
+
 // Splits a taxable amount into CGST+SGST (same state) or IGST (inter-state).
 export const calcGst = (taxableAmount, gstPercent, interState) => {
   const taxable = round2(taxableAmount)
@@ -285,8 +291,8 @@ export const balanceDue = (doc) => {
   const total = Number(doc.total) || 0
   const paid = Number(doc.amountPaid) || 0
   const adjusted = Number(doc.adjustedAmount) || 0
-  const due = round2(total - paid - adjusted)
-  const status = due <= 0 ? 'paid' : paid > 0 ? 'partial' : 'unpaid'
+  const due = doc.voided ? 0 : round2(total - paid - adjusted)
+  const status = doc.voided ? 'void' : due <= 0 ? 'paid' : paid > 0 ? 'partial' : 'unpaid'
   return { total, paid, adjusted, due, status }
 }
 
@@ -295,11 +301,18 @@ export const balanceDue = (doc) => {
 // earlier credit notes on the same invoice.
 export const creditableAmount = (doc) => round2((Number(doc.total) || 0) - (Number(doc.adjustedAmount) || 0))
 
+// A document can only be voided while nothing has happened against it yet
+// (no payment received/made, no credit/debit note) - once money or a note
+// is on record, voiding it out from under those would leave them dangling.
+export const canVoid = (doc) => !doc.voided && (Number(doc.amountPaid) || 0) === 0 && (Number(doc.adjustedAmount) || 0) === 0
+
 // Paid / unpaid / overdue counts and amounts across a set of invoices (or
-// bills) - anything still owed after 30 days counts as overdue.
+// bills) - anything still owed after 30 days counts as overdue. Voided
+// documents have no financial effect left and are skipped entirely.
 export const invoiceStats = (invoices, today = new Date()) => {
   const stats = { paidCount: 0, paidAmount: 0, unpaidCount: 0, unpaidAmount: 0, overdueCount: 0, overdueAmount: 0 }
   invoices.forEach((invoice) => {
+    if (invoice.voided) return
     const { total, due, status } = balanceDue(invoice)
     if (status === 'paid') {
       stats.paidCount += 1

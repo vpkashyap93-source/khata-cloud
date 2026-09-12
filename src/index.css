@@ -180,6 +180,10 @@ tfoot td { font-weight: 700; border-top: 2px solid var(--ink); border-bottom: no
 .mismatch { color: var(--red); }
 .grand-total { font-weight: 700; font-size: 1.05rem; }
 .tag { font-size: 0.7rem; background: var(--border); border-radius: 4px; padding: 1px 6px; margin-left: 6px; }
+.tag-void { background: var(--red-bg); color: var(--red); }
+.voided-row { opacity: 0.55; text-decoration: line-through; }
+.voided-row td:last-child { text-decoration: none; }
+.status-pill.void { background: var(--border); color: var(--muted); }
 
 .totals-box { background: var(--bg); border-radius: 8px; padding: 10px 14px; display: flex; gap: 20px; flex-wrap: wrap; align-items: baseline; }
 
@@ -267,7 +271,12 @@ tfoot td { font-weight: 700; border-top: 2px solid var(--ink); border-bottom: no
 .print-toolbar { position: sticky; top: 0; display: flex; justify-content: flex-end; gap: 10px; width: 100%; max-width: 720px; margin: 0 auto 10px; }
 .print-toolbar button[type="button"]:first-child { background: var(--accent); color: #fff; border: none; border-radius: 7px; padding: 8px 16px; font-weight: 600; }
 .print-toolbar .link-button { background: #fff; border-radius: 7px; padding: 8px 14px; }
-.print-sheet { background: #fff; color: #1b2333; width: 100%; max-width: 720px; padding: 40px; border-radius: 4px; }
+.print-sheet { background: #fff; color: #1b2333; width: 100%; max-width: 720px; padding: 40px; border-radius: 4px; position: relative; }
+.print-watermark {
+  position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%) rotate(-20deg);
+  font-size: 5rem; font-weight: 800; color: rgba(220, 38, 38, 0.18); letter-spacing: 0.1em;
+  pointer-events: none; z-index: 1;
+}
 .print-letterhead { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1b2333; padding-bottom: 16px; margin-bottom: 16px; }
 .print-letterhead h1 { font-size: 1.2rem; margin: 0 0 4px; }
 .print-letterhead p { margin: 0; font-size: 0.82rem; color: #555; }

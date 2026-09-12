@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { validateJournalLines, sumLines } from '../lib/accounting.js'
-import { addOrgDoc } from '../firebase.js'
+import { validateJournalLines, sumLines, reverseLines } from '../lib/accounting.js'
+import { addOrgDoc, setOrgDoc } from '../firebase.js'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const blankLine = () => ({ accountId: '', debit: '', credit: '' })
@@ -47,6 +47,17 @@ export default function JournalEntries({ orgId, accounts, entries }) {
   const accountName = (id) => accounts.find((account) => account.id === id)?.name || 'Unknown account'
   const totalDebit = sumLines(lines, 'debit')
   const totalCredit = sumLines(lines, 'credit')
+
+  const voidEntry = async (entry) => {
+    if (!window.confirm(`Void this entry? A reversing entry will be posted - "${entry.narration}" stays in the books but nets to zero.`)) return
+    await addOrgDoc(orgId, 'journalEntries', {
+      date: today(),
+      narration: `Void: ${entry.narration}`,
+      lines: reverseLines(entry.lines),
+      source: 'void',
+    })
+    await setOrgDoc(orgId, 'journalEntries', entry.id, { voided: true })
+  }
 
   return (
     <div className="panel">
@@ -119,12 +130,15 @@ export default function JournalEntries({ orgId, accounts, entries }) {
 
       <h3>Recent entries</h3>
       <table>
-        <thead><tr><th>Date</th><th>Narration</th><th>Lines</th><th>Amount</th></tr></thead>
+        <thead><tr><th>Date</th><th>Narration</th><th>Lines</th><th>Amount</th><th /></tr></thead>
         <tbody>
           {entries.map((entry) => (
-            <tr key={entry.id}>
+            <tr key={entry.id} className={entry.voided ? 'voided-row' : ''}>
               <td>{entry.date}</td>
-              <td>{entry.narration} {entry.source !== 'manual' && <span className="tag">{entry.source}</span>}</td>
+              <td>
+                {entry.narration} {entry.source !== 'manual' && <span className="tag">{entry.source}</span>}
+                {entry.voided && <span className="tag tag-void">voided</span>}
+              </td>
               <td>
                 {entry.lines.map((line, i) => (
                   <div key={i}>
@@ -133,6 +147,11 @@ export default function JournalEntries({ orgId, accounts, entries }) {
                 ))}
               </td>
               <td>{sumLines(entry.lines, 'debit').toFixed(2)}</td>
+              <td>
+                {entry.source === 'manual' && !entry.voided && (
+                  <button type="button" className="link-button" onClick={() => voidEntry(entry)}>Void</button>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>

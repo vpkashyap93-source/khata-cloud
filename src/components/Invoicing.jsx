@@ -8,6 +8,8 @@ import {
   buildDebitNoteJournalLines,
   balanceDue,
   creditableAmount,
+  canVoid,
+  reverseLines,
   round2,
 } from '../lib/accounting.js'
 import { addOrgDoc, setOrgDoc } from '../firebase.js'
@@ -24,6 +26,7 @@ function PrintView({ doc, org, config, onClose }) {
         <button type="button" className="link-button" onClick={onClose}>Close</button>
       </div>
       <div className="print-sheet">
+        {doc.voided && <div className="print-watermark">VOID</div>}
         <div className="print-letterhead">
           <div>
             <h1>{org.name || 'Your Business'}</h1>
@@ -161,7 +164,7 @@ function IssueNote({ orgId, doc, accounts, config, notesCount, onDone }) {
 // recorded separately, later, via RecordPayment; returns/corrections via
 // IssueNote. Selling or buying a tracked catalog item also posts a stock
 // movement so Items' stock-on-hand stays accurate.
-function DocumentForm({ orgId, accounts, documents, contacts, items, notes, org, config }) {
+function DocumentForm({ orgId, accounts, documents, contacts, items, notes, entries, org, config }) {
   const [partyName, setPartyName] = useState('')
   const [date, setDate] = useState(today())
   const [lineItems, setLineItems] = useState([blankItem()])
@@ -243,6 +246,19 @@ function DocumentForm({ orgId, accounts, documents, contacts, items, notes, org,
     setLineItems([blankItem()])
   }
 
+  const voidDocument = async (doc) => {
+    const originalEntry = entries.find((entry) => entry.id === doc.journalEntryId)
+    if (!originalEntry) return
+    if (!window.confirm(`Void ${config.docLabel} ${doc.number}? A reversing entry will be posted - it stays in the books but nets to zero.`)) return
+    await addOrgDoc(orgId, 'journalEntries', {
+      date: today(),
+      narration: `Void: ${config.docLabel} ${doc.number} - ${doc.partyName}`,
+      lines: reverseLines(originalEntry.lines),
+      source: 'void',
+    })
+    await setOrgDoc(orgId, config.collectionName, doc.id, { voided: true })
+  }
+
   return (
     <div className="panel">
       <h2>{config.title}</h2>
@@ -314,22 +330,26 @@ function DocumentForm({ orgId, accounts, documents, contacts, items, notes, org,
         <tbody>
           {documents.map((item) => {
             const { due, status } = balanceDue(item)
-            const canNote = creditableAmount(item) > 0
+            const canNote = !item.voided && creditableAmount(item) > 0
+            const pillClass = status === 'paid' ? 'paid' : status === 'partial' ? 'due' : status === 'void' ? 'void' : 'overdue'
             return (
-              <tr key={item.id}>
+              <tr key={item.id} className={item.voided ? 'voided-row' : ''}>
                 <td>{item.number}</td>
                 <td>{item.date}</td>
                 <td>{item.partyName}</td>
                 <td>{Number(item.total).toFixed(2)}</td>
                 <td>{due.toFixed(2)}</td>
-                <td><span className={`status-pill ${status === 'paid' ? 'paid' : status === 'partial' ? 'due' : 'overdue'}`}>{status}</span></td>
+                <td><span className={`status-pill ${pillClass}`}>{status}</span></td>
                 <td>
                   <button type="button" className="link-button" onClick={() => setPrintingDoc(item)}>Print</button>
-                  {status !== 'paid' && payingId !== item.id && (
+                  {!item.voided && status !== 'paid' && payingId !== item.id && (
                     <button type="button" className="link-button" onClick={() => setPayingId(item.id)}>Record payment</button>
                   )}
                   {canNote && notingId !== item.id && (
                     <button type="button" className="link-button" onClick={() => setNotingId(item.id)}>{config.noteLabel}</button>
+                  )}
+                  {canVoid(item) && (
+                    <button type="button" className="link-button" onClick={() => voidDocument(item)}>Void</button>
                   )}
                 </td>
               </tr>
@@ -378,7 +398,7 @@ function DocumentForm({ orgId, accounts, documents, contacts, items, notes, org,
   )
 }
 
-export function Invoices({ orgId, accounts, invoices, customers, items, creditNotes, org }) {
+export function Invoices({ orgId, accounts, invoices, customers, items, creditNotes, entries, org }) {
   return (
     <DocumentForm
       orgId={orgId}
@@ -387,6 +407,7 @@ export function Invoices({ orgId, accounts, invoices, customers, items, creditNo
       contacts={customers}
       items={items}
       notes={creditNotes}
+      entries={entries}
       org={org}
       config={{
         title: 'Sales Invoices',
@@ -413,7 +434,7 @@ export function Invoices({ orgId, accounts, invoices, customers, items, creditNo
   )
 }
 
-export function Bills({ orgId, accounts, bills, vendors, items, debitNotes, org }) {
+export function Bills({ orgId, accounts, bills, vendors, items, debitNotes, entries, org }) {
   return (
     <DocumentForm
       orgId={orgId}
@@ -422,6 +443,7 @@ export function Bills({ orgId, accounts, bills, vendors, items, debitNotes, org 
       contacts={vendors}
       items={items}
       notes={debitNotes}
+      entries={entries}
       org={org}
       config={{
         title: 'Purchase Bills',

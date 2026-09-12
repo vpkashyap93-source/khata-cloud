@@ -37,6 +37,12 @@ Balance Sheet reports - all backed by Firebase, in real time.
   opening balance; every sale, purchase, and manual adjustment posts a
   stock movement, netting out to a live stock-on-hand figure
   (`stockOnHand`).
+- **Void, not edit**: a posted journal entry, invoice, or bill is never
+  rewritten - voiding it posts an equal-and-opposite reversing entry
+  (`reverseLines`), so the books keep a full audit trail while every
+  balance, ledger, and report nets back to zero on its own. Only
+  available before any payment or note has been recorded against a
+  document (`canVoid`).
 - **Reports**: computed on the client from the live journal entries -
   Trial Balance, date-ranged Profit & Loss, and an as-of-date Balance
   Sheet (`src/lib/accounting.js`).
@@ -62,5 +68,5 @@ to "GitHub Actions" once, the first time).
 
 - Inviting additional team members into an existing org (each signup
   currently gets its own single-owner org).
-- Editing/voiding a posted invoice, bill, or journal entry.
+- GSTR-1/GSTR-3B return summaries, and bank reconciliation.
 - Exporting reports to PDF/Excel (invoices/bills do have a print view).
