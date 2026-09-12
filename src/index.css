@@ -538,3 +538,10 @@ table.voucher-table td:first-child { color: var(--muted); }
   width: 20px; height: 20px; border-radius: 50%; background: var(--bg); color: var(--muted);
   font-size: 0.7rem; font-weight: 700; margin-right: 8px; flex-shrink: 0;
 }
+
+/* ---- Settings ---- */
+.save-confirm {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--green-bg); color: var(--green); font-weight: 600; font-size: 0.85rem;
+  padding: 7px 14px; border-radius: 20px;
+}

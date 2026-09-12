@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { updateOrg } from '../firebase.js'
+import Icon from './icons.jsx'
 
 const STATES = [
   'Andhra Pradesh', 'Bihar', 'Delhi', 'Gujarat', 'Haryana', 'Karnataka', 'Kerala', 'Madhya Pradesh',
@@ -35,6 +36,7 @@ export default function Settings({ orgId, org }) {
       <h2>Business Settings</h2>
       <p className="section-sub">Appears on your printed invoices and bills.</p>
       <form className="contact-form" onSubmit={submit}>
+        <p className="report-section-title" style={{ marginTop: 4 }}>Business Profile</p>
         <label>
           Business name
           <input value={form.name} onChange={(event) => update('name', event.target.value)} required />
@@ -52,6 +54,8 @@ export default function Settings({ orgId, org }) {
             </select>
           </label>
         </div>
+
+        <p className="report-section-title">Address &amp; Contact</p>
         <label>
           Address
           <textarea rows={2} value={form.address} onChange={(event) => update('address', event.target.value)} />
@@ -66,6 +70,8 @@ export default function Settings({ orgId, org }) {
             <input type="email" value={form.email} onChange={(event) => update('email', event.target.value)} />
           </label>
         </div>
+
+        <p className="report-section-title">Invoice Numbering</p>
         <div className="journal-header-row">
           <label>
             Invoice number prefix
@@ -76,9 +82,10 @@ export default function Settings({ orgId, org }) {
             <input value={form.billPrefix} onChange={(event) => update('billPrefix', event.target.value)} />
           </label>
         </div>
-        <div className="journal-header-row">
+
+        <div className="journal-header-row" style={{ marginTop: 8 }}>
           <button type="submit">Save settings</button>
-          {saved && <span className="auth-info">Saved.</span>}
+          {saved && <span className="save-confirm"><Icon name="check" size={13} />Saved</span>}
         </div>
       </form>
     </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { calcGst, buildInvoiceJournalLines, round2 } from '../lib/accounting.js'
 import { addOrgDoc, setOrgDoc } from '../firebase.js'
+import Icon from './icons.jsx'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const blankItem = () => ({ description: '', qty: 1, rate: '', itemId: null })
@@ -220,10 +221,12 @@ export default function Estimates({ orgId, accounts, estimates, invoices, custom
                 </span>
               </td>
               <td>
-                <button type="button" className="link-button" onClick={() => setPrintingEstimate(estimate)}>Print</button>
-                {!estimate.convertedInvoiceId && (
-                  <button type="button" className="link-button" onClick={() => convertToInvoice(estimate)}>Convert to Invoice</button>
-                )}
+                <div className="action-pills">
+                  <button type="button" className="action-pill" onClick={() => setPrintingEstimate(estimate)}><Icon name="print" size={13} />Print</button>
+                  {!estimate.convertedInvoiceId && (
+                    <button type="button" className="action-pill success" onClick={() => convertToInvoice(estimate)}><Icon name="invoices" size={13} />Convert to Invoice</button>
+                  )}
+                </div>
               </td>
             </tr>
           ))}
