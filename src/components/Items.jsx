@@ -27,12 +27,23 @@ function AdjustStock({ orgId, item, onDone }) {
   }
 
   return (
-    <form className="payment-form" onSubmit={submit}>
-      <input type="number" step="1" placeholder="+/- qty" value={qty} onChange={(event) => setQty(event.target.value)} />
-      <input placeholder="Reason (optional)" value={reason} onChange={(event) => setReason(event.target.value)} />
-      <button type="submit">Save adjustment</button>
-      <button type="button" className="link-button" onClick={onDone}>Cancel</button>
+    <form className="voucher-form" onSubmit={submit}>
+      <div className="voucher-form-title">Adjust stock - {item.name}</div>
+      <div className="journal-header-row">
+        <label>
+          Quantity (+/-)
+          <input className="amt-input" type="number" step="1" value={qty} onChange={(event) => setQty(event.target.value)} />
+        </label>
+        <label className="grow">
+          Reason
+          <input placeholder="e.g. stock count, damage" value={reason} onChange={(event) => setReason(event.target.value)} />
+        </label>
+      </div>
       {error && <p className="form-error">{error}</p>}
+      <div className="journal-header-row">
+        <button type="submit">Save adjustment</button>
+        <button type="button" className="link-button" onClick={onDone}>Cancel</button>
+      </div>
     </form>
   )
 }

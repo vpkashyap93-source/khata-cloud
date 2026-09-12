@@ -259,9 +259,11 @@ tfoot td { font-weight: 700; border-top: 2px solid var(--ink); border-bottom: no
 .contact-form button[type="submit"]:hover { background: var(--accent-dark); }
 
 /* ---- Payment recording ---- */
-.payment-form { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 0; }
-.payment-form button[type="submit"] { background: var(--green); color: #fff; border: none; border-radius: 7px; padding: 7px 14px; font-weight: 600; }
-.payment-form input[type="number"] { width: 120px; }
+.voucher-form { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.voucher-form-title { font-weight: 600; font-size: 0.9rem; }
+.voucher-form-hint { font-size: 0.8rem; color: var(--muted); align-self: center; }
+.voucher-form input[type="number"] { width: 140px; }
+.voucher-form button[type="submit"] { background: var(--green); color: #fff; border: none; border-radius: 7px; padding: 8px 16px; font-weight: 600; align-self: flex-start; }
 
 /* ---- Printable invoice/bill ---- */
 .print-overlay {

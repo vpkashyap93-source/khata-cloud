@@ -94,15 +94,27 @@ function RecordPayment({ orgId, doc, accounts, config, onDone }) {
   }
 
   return (
-    <form className="payment-form" onSubmit={submit}>
-      <input type="number" min="0" max={due} step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} />
-      <select value={cashAccount} onChange={(event) => setCashAccount(event.target.value)}>
-        <option value="Cash">Cash</option>
-        <option value="Bank">Bank</option>
-      </select>
-      <button type="submit">Save payment</button>
-      <button type="button" className="link-button" onClick={onDone}>Cancel</button>
+    <form className="voucher-form" onSubmit={submit}>
+      <div className="voucher-form-title">Record payment - {doc.number}</div>
+      <div className="journal-header-row">
+        <label>
+          Amount
+          <input className="amt-input" type="number" min="0" max={due} step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} />
+        </label>
+        <label>
+          {config.paymentDirection === 'receivable' ? 'Received into' : 'Paid from'}
+          <select value={cashAccount} onChange={(event) => setCashAccount(event.target.value)}>
+            <option value="Cash">Cash</option>
+            <option value="Bank">Bank</option>
+          </select>
+        </label>
+        <span className="voucher-form-hint">Balance due: {due.toFixed(2)}</span>
+      </div>
       {error && <p className="form-error">{error}</p>}
+      <div className="journal-header-row">
+        <button type="submit">Save payment</button>
+        <button type="button" className="link-button" onClick={onDone}>Cancel</button>
+      </div>
     </form>
   )
 }
@@ -148,12 +160,24 @@ function IssueNote({ orgId, doc, accounts, config, notesCount, onDone }) {
   }
 
   return (
-    <form className="payment-form" onSubmit={submit}>
-      <input type="number" min="0" step="0.01" placeholder="Taxable amount" value={amount} onChange={(event) => setAmount(event.target.value)} />
-      <input placeholder="Reason (e.g. returned goods)" value={reason} onChange={(event) => setReason(event.target.value)} />
-      <button type="submit">Issue {config.noteLabel.toLowerCase()}</button>
-      <button type="button" className="link-button" onClick={onDone}>Cancel</button>
+    <form className="voucher-form" onSubmit={submit}>
+      <div className="voucher-form-title">{config.noteLabel} against {doc.number}</div>
+      <div className="journal-header-row">
+        <label>
+          Taxable amount
+          <input className="amt-input" type="number" min="0" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} />
+        </label>
+        <label className="grow">
+          Reason
+          <input placeholder="e.g. returned goods" value={reason} onChange={(event) => setReason(event.target.value)} />
+        </label>
+        <span className="voucher-form-hint">Up to {maxAmount.toFixed(2)} remaining</span>
+      </div>
       {error && <p className="form-error">{error}</p>}
+      <div className="journal-header-row">
+        <button type="submit">Issue {config.noteLabel.toLowerCase()}</button>
+        <button type="button" className="link-button" onClick={onDone}>Cancel</button>
+      </div>
     </form>
   )
 }
@@ -282,7 +306,7 @@ function DocumentForm({ orgId, accounts, documents, contacts, items, notes, entr
           </label>
         </div>
         <table>
-          <thead><tr><th>Item</th><th>Description</th><th>Qty</th><th>Rate</th><th>Amount</th><th /></tr></thead>
+          <thead><tr><th>Item</th><th>Description</th><th className="amt">Qty</th><th className="amt">Rate</th><th className="amt">Amount</th><th /></tr></thead>
           <tbody>
             {lineItems.map((item, index) => (
               <tr key={index}>
@@ -293,9 +317,9 @@ function DocumentForm({ orgId, accounts, documents, contacts, items, notes, entr
                   </select>
                 </td>
                 <td><input value={item.description} onChange={(event) => updateItem(index, 'description', event.target.value)} /></td>
-                <td><input type="number" min="0" step="1" value={item.qty} onChange={(event) => updateItem(index, 'qty', event.target.value)} /></td>
-                <td><input type="number" min="0" step="0.01" value={item.rate} onChange={(event) => updateItem(index, 'rate', event.target.value)} /></td>
-                <td>{round2((Number(item.qty) || 0) * (Number(item.rate) || 0)).toFixed(2)}</td>
+                <td><input className="amt-input" type="number" min="0" step="1" value={item.qty} onChange={(event) => updateItem(index, 'qty', event.target.value)} /></td>
+                <td><input className="amt-input" type="number" min="0" step="0.01" value={item.rate} onChange={(event) => updateItem(index, 'rate', event.target.value)} /></td>
+                <td className="amt">{round2((Number(item.qty) || 0) * (Number(item.rate) || 0)).toFixed(2)}</td>
                 <td>{lineItems.length > 1 && <button type="button" className="link-button" onClick={() => removeItem(index)}>Remove</button>}</td>
               </tr>
             ))}
@@ -326,7 +350,7 @@ function DocumentForm({ orgId, accounts, documents, contacts, items, notes, entr
 
       <h3>Recent {config.title.toLowerCase()}</h3>
       <table>
-        <thead><tr><th>#</th><th>Date</th><th>{config.partyLabel}</th><th>Total</th><th>Balance due</th><th>Status</th><th /></tr></thead>
+        <thead><tr><th>#</th><th>Date</th><th>{config.partyLabel}</th><th className="amt">Total</th><th className="amt">Balance due</th><th>Status</th><th /></tr></thead>
         <tbody>
           {documents.map((item) => {
             const { due, status } = balanceDue(item)
@@ -337,8 +361,8 @@ function DocumentForm({ orgId, accounts, documents, contacts, items, notes, entr
                 <td>{item.number}</td>
                 <td>{item.date}</td>
                 <td>{item.partyName}</td>
-                <td>{Number(item.total).toFixed(2)}</td>
-                <td>{due.toFixed(2)}</td>
+                <td className="amt">{Number(item.total).toFixed(2)}</td>
+                <td className="amt">{due.toFixed(2)}</td>
                 <td><span className={`status-pill ${pillClass}`}>{status}</span></td>
                 <td>
                   <button type="button" className="link-button" onClick={() => setPrintingDoc(item)}>Print</button>
@@ -376,7 +400,7 @@ function DocumentForm({ orgId, accounts, documents, contacts, items, notes, entr
         <>
           <h3>{config.noteLabel}s issued</h3>
           <table>
-            <thead><tr><th>#</th><th>Date</th><th>Against</th><th>{config.partyLabel}</th><th>Amount</th><th>Reason</th></tr></thead>
+            <thead><tr><th>#</th><th>Date</th><th>Against</th><th>{config.partyLabel}</th><th className="amt">Amount</th><th>Reason</th></tr></thead>
             <tbody>
               {notes.map((note) => (
                 <tr key={note.id}>
@@ -384,7 +408,7 @@ function DocumentForm({ orgId, accounts, documents, contacts, items, notes, entr
                   <td>{note.date}</td>
                   <td>{note.docNumber}</td>
                   <td>{note.partyName}</td>
-                  <td>{Number(note.total).toFixed(2)}</td>
+                  <td className="amt">{Number(note.total).toFixed(2)}</td>
                   <td>{note.reason || '-'}</td>
                 </tr>
               ))}
