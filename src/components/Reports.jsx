@@ -1,17 +1,38 @@
 import { useState } from 'react'
 import { computeTrialBalance, computeProfitAndLoss, computeBalanceSheet, computeGstSummary } from '../lib/accounting.js'
+import { downloadCsv } from '../lib/csv.js'
+import Icon from './icons.jsx'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const monthStart = () => `${today().slice(0, 7)}-01`
 const money = (value) => Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const amt = (value) => Number(value || 0).toFixed(2)
+
+function ExportButton({ onClick }) {
+  return (
+    <div className="export-row">
+      <button type="button" className="action-pill" onClick={onClick}><Icon name="download" size={13} />Export CSV</button>
+    </div>
+  )
+}
 
 function TrialBalance({ accounts, entries }) {
   const rows = computeTrialBalance(accounts, entries)
   const totalDebit = rows.reduce((total, row) => total + row.debitTotal, 0)
   const totalCredit = rows.reduce((total, row) => total + row.creditTotal, 0)
   const balanced = Math.abs(totalDebit - totalCredit) < 0.01
+
+  const exportCsv = () => {
+    downloadCsv(`trial-balance-${today()}.csv`, [
+      ['Account', 'Type', 'Debit', 'Credit'],
+      ...rows.map((row) => [row.account.name, row.account.type, amt(row.debitTotal), amt(row.creditTotal)]),
+      ['Total', '', amt(totalDebit), amt(totalCredit)],
+    ])
+  }
+
   return (
     <>
+      <ExportButton onClick={exportCsv} />
       <div className="report-summary">
         <div className="report-stat">
           <div className="report-stat-label">Total Debit</div>
@@ -54,12 +75,25 @@ function ProfitAndLoss({ accounts, entries }) {
   const [from, setFrom] = useState(monthStart())
   const [to, setTo] = useState(today())
   const { income, expenses, totalIncome, totalExpense, netProfit } = computeProfitAndLoss(accounts, entries, from, to)
+
+  const exportCsv = () => {
+    downloadCsv(`profit-and-loss-${from}-to-${to}.csv`, [
+      ['Section', 'Account', 'Amount'],
+      ...income.map((row) => ['Income', row.account.name, amt(row.amount)]),
+      ['Income', 'Total Income', amt(totalIncome)],
+      ...expenses.map((row) => ['Expense', row.account.name, amt(row.amount)]),
+      ['Expense', 'Total Expenses', amt(totalExpense)],
+      [netProfit >= 0 ? 'Net Profit' : 'Net Loss', '', amt(Math.abs(netProfit))],
+    ])
+  }
+
   return (
     <>
       <div className="journal-header-row">
         <label>From <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
         <label>To <input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
       </div>
+      <ExportButton onClick={exportCsv} />
       <div className="report-summary">
         <div className="report-stat">
           <div className="report-stat-label">Total Income</div>
@@ -96,9 +130,24 @@ function BalanceSheet({ accounts, entries }) {
   const [asOf, setAsOf] = useState(today())
   const { assets, liabilities, equity, netProfit, totalAssets, totalLiabilities, totalEquity } = computeBalanceSheet(accounts, entries, asOf)
   const balanced = Math.abs(totalAssets - (totalLiabilities + totalEquity)) < 0.01
+
+  const exportCsv = () => {
+    downloadCsv(`balance-sheet-${asOf}.csv`, [
+      ['Section', 'Account', 'Amount'],
+      ...assets.map((row) => ['Asset', row.account.name, amt(row.amount)]),
+      ['Asset', 'Total Assets', amt(totalAssets)],
+      ...liabilities.map((row) => ['Liability', row.account.name, amt(row.amount)]),
+      ['Liability', 'Total Liabilities', amt(totalLiabilities)],
+      ...equity.map((row) => ['Equity', row.account.name, amt(row.amount)]),
+      ['Equity', 'Net Profit (period to date)', amt(netProfit)],
+      ['Equity', 'Total Equity', amt(totalEquity)],
+    ])
+  }
+
   return (
     <>
       <label>As of <input type="date" value={asOf} onChange={(event) => setAsOf(event.target.value)} /></label>
+      <ExportButton onClick={exportCsv} />
       <div className="report-summary">
         <div className="report-stat">
           <div className="report-stat-label">Total Assets</div>
@@ -139,12 +188,24 @@ function GstSummary({ invoices, bills, creditNotes, debitNotes }) {
   const [from, setFrom] = useState(monthStart())
   const [to, setTo] = useState(today())
   const { sales, purchases, netPayable, totalPayable, invoiceCount, billCount } = computeGstSummary(invoices, bills, creditNotes, debitNotes, from, to)
+
+  const exportCsv = () => {
+    downloadCsv(`gst-summary-${from}-to-${to}.csv`, [
+      ['Section', 'Taxable Value', 'CGST', 'SGST', 'IGST'],
+      ['Output tax - Sales', amt(sales.taxable), amt(sales.cgst), amt(sales.sgst), amt(sales.igst)],
+      ['Input tax credit - Purchases', amt(purchases.taxable), amt(purchases.cgst), amt(purchases.sgst), amt(purchases.igst)],
+      ['Net GST payable', '', amt(netPayable.cgst), amt(netPayable.sgst), amt(netPayable.igst)],
+      [totalPayable >= 0 ? 'Total Payable' : 'Credit Carried Forward', amt(Math.abs(totalPayable)), '', '', ''],
+    ])
+  }
+
   return (
     <>
       <div className="journal-header-row">
         <label>From <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
         <label>To <input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
       </div>
+      <ExportButton onClick={exportCsv} />
       <div className="report-summary">
         <div className="report-stat">
           <div className="report-stat-label">Sales (net of CN)</div>

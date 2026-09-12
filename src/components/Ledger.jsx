@@ -1,8 +1,12 @@
 import { useState } from 'react'
 import { computeLedger } from '../lib/accounting.js'
+import { downloadCsv } from '../lib/csv.js'
 import Icon from './icons.jsx'
 
 const money = (value) => Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const amt = (value) => Number(value || 0).toFixed(2)
+const today = () => new Date().toISOString().slice(0, 10)
+const slugify = (value) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
 export default function Ledger({ accounts, entries }) {
   const [accountId, setAccountId] = useState('')
@@ -11,6 +15,14 @@ export default function Ledger({ accounts, entries }) {
   const totalDebit = rows.reduce((total, row) => total + row.debit, 0)
   const totalCredit = rows.reduce((total, row) => total + row.credit, 0)
   const closingBalance = rows.length > 0 ? rows[rows.length - 1].balance : 0
+
+  const exportCsv = () => {
+    downloadCsv(`ledger-${slugify(account.name)}-${today()}.csv`, [
+      ['Date', 'Narration', 'Debit', 'Credit', 'Balance'],
+      ...rows.map((row) => [row.date, row.narration, amt(row.debit), amt(row.credit), amt(row.balance)]),
+      ['', 'Closing balance', amt(totalDebit), amt(totalCredit), amt(closingBalance)],
+    ])
+  }
 
   return (
     <div className="panel">
@@ -25,6 +37,11 @@ export default function Ledger({ accounts, entries }) {
             ))}
           </select>
         </label>
+        {account && rows.length > 0 && (
+          <button type="button" className="action-pill" onClick={exportCsv} style={{ alignSelf: 'flex-end' }}>
+            <Icon name="download" size={13} />Export CSV
+          </button>
+        )}
         {account && (
           <div className="ledger-stats">
             <div className="stat-chip">

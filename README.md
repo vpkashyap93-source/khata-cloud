@@ -73,6 +73,11 @@ Balance Sheet reports - all backed by Firebase, in real time.
   no connection too, via a manifest (`public/manifest.webmanifest`)
   and a small same-origin-only service worker (`public/sw.js`) that
   never touches Firebase/Auth traffic.
+- **CSV export**: every report (Trial Balance, Profit &amp; Loss,
+  Balance Sheet, GST Summary) and the Ledger have an Export CSV button
+  that builds the file client-side (`src/lib/csv.js`) from the exact
+  numbers already on screen - no export service, and it opens correctly
+  in Excel (UTF-8 with a BOM, so the ₹ sign doesn't get mangled).
 
 ## Run locally
 
@@ -97,4 +102,5 @@ to "GitHub Actions" once, the first time).
   currently gets its own single-owner org).
 - Actually filing GST returns (the GST Summary report covers what's
   owed; filing itself is out of scope), and bank reconciliation.
-- Exporting reports to PDF/Excel (invoices/bills do have a print view).
+- Exporting to PDF (reports export to CSV; invoices/bills have a print
+  view, which covers PDF via the browser's own print-to-PDF).

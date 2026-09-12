@@ -585,6 +585,9 @@ table.voucher-table td:first-child { color: var(--muted); }
   font-size: 0.7rem; font-weight: 700; margin-right: 8px; flex-shrink: 0;
 }
 
+/* ---- CSV export ---- */
+.export-row { display: flex; justify-content: flex-end; margin: -4px 0 12px; }
+
 /* ---- Offline banner ---- */
 .offline-banner {
   display: flex; align-items: center; gap: 8px;
