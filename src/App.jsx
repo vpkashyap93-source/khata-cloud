@@ -133,7 +133,10 @@ export default function App() {
             <span className="search-trigger-label">Search</span>
             <span className="search-trigger-kbd">Ctrl K</span>
           </button>
-          <span className="org-name">{org.name}</span>
+          <span className="org-name">
+            <span className="org-avatar">{(org.name || '?').charAt(0).toUpperCase()}</span>
+            {org.name}
+          </span>
         </header>
         <main className="app-main">
           {tab === 'dashboard' && <Dashboard accounts={accounts} entries={entries} invoices={invoices} bills={bills} />}

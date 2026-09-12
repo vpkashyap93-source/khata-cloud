@@ -1,14 +1,18 @@
 import { accountBalance, cashTrend, monthlyIncomeExpense, topExpenseAccounts, invoiceStats, round2 } from '../lib/accounting.js'
+import Icon from './icons.jsx'
 
 const money = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
 const monthLabel = (key) => new Date(`${key}-01`).toLocaleDateString('en-IN', { month: 'short' })
 
-function KpiCard({ label, value, tone, sub }) {
+function KpiCard({ label, value, tone, sub, icon }) {
   return (
     <div className={`kpi-card kpi-${tone}`}>
-      <div className="kpi-label">{label}</div>
-      <div className="kpi-value">{value}</div>
-      {sub && <div className="kpi-sub">{sub}</div>}
+      <div className="kpi-icon"><Icon name={icon} size={18} /></div>
+      <div className="kpi-body">
+        <div className="kpi-label">{label}</div>
+        <div className="kpi-value">{value}</div>
+        {sub && <div className="kpi-sub">{sub}</div>}
+      </div>
     </div>
   )
 }
@@ -112,10 +116,10 @@ export default function Dashboard({ accounts, entries, invoices, bills }) {
   return (
     <div className="dashboard">
       <div className="kpi-row">
-        <KpiCard label="Cash &amp; Bank" value={money(cashBalance + bankBalance)} tone="blue" sub={`Cash ${money(cashBalance)} · Bank ${money(bankBalance)}`} />
-        <KpiCard label="Receivables" value={money(receivableBalance)} tone="green" sub={`${salesStats.overdueCount} overdue invoice${salesStats.overdueCount === 1 ? '' : 's'}`} />
-        <KpiCard label="Payables" value={money(payableBalance)} tone="orange" sub={`${purchaseStats.unpaidCount} unpaid bill${purchaseStats.unpaidCount === 1 ? '' : 's'}`} />
-        <KpiCard label="Net Profit (MTD)" value={money(netProfit)} tone={netProfit >= 0 ? 'green' : 'orange'} sub={`Income ${money(monthIncome)} · Expense ${money(monthExpense)}`} />
+        <KpiCard label="Cash &amp; Bank" value={money(cashBalance + bankBalance)} tone="blue" icon="dashboard" sub={`Cash ${money(cashBalance)} · Bank ${money(bankBalance)}`} />
+        <KpiCard label="Receivables" value={money(receivableBalance)} tone="green" icon="invoices" sub={`${salesStats.overdueCount} overdue invoice${salesStats.overdueCount === 1 ? '' : 's'}`} />
+        <KpiCard label="Payables" value={money(payableBalance)} tone="orange" icon="bills" sub={`${purchaseStats.unpaidCount} unpaid bill${purchaseStats.unpaidCount === 1 ? '' : 's'}`} />
+        <KpiCard label="Net Profit (MTD)" value={money(netProfit)} tone={netProfit >= 0 ? 'green' : 'orange'} icon="reports" sub={`Income ${money(monthIncome)} · Expense ${money(monthExpense)}`} />
       </div>
 
       <div className="dash-grid">
