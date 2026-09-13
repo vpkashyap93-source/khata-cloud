@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
-import { watchAuthState, ensureOrg, watchOrg, watchOrgCollection, logOut, isFirebaseConfigured } from './firebase.js'
+import { useEffect, useRef, useState } from 'react'
+import { watchAuthState, ensureOrg, watchOrg, watchOrgCollection, addOrgDoc, setOrgDoc, logOut, isFirebaseConfigured } from './firebase.js'
+import { isTemplateDue, advanceDate, buildInvoiceJournalLines, calcGst, round2 } from './lib/accounting.js'
 import Login from './components/Login.jsx'
 import Dashboard from './components/Dashboard.jsx'
 import ChartOfAccounts from './components/ChartOfAccounts.jsx'
 import JournalEntries from './components/JournalEntries.jsx'
 import { Invoices, Bills } from './components/Invoicing.jsx'
 import Estimates from './components/Estimates.jsx'
+import Recurring from './components/Recurring.jsx'
 import { Customers, Vendors } from './components/Contacts.jsx'
 import Items from './components/Items.jsx'
 import Settings from './components/Settings.jsx'
@@ -21,6 +23,7 @@ const NAV = [
   { id: 'estimates', label: 'Estimates', icon: 'estimates' },
   { id: 'invoices', label: 'Sales Invoices', icon: 'invoices' },
   { id: 'bills', label: 'Purchase Bills', icon: 'bills' },
+  { id: 'recurring', label: 'Recurring', icon: 'repeat' },
   { id: 'customers', label: 'Customers', icon: 'customers' },
   { id: 'vendors', label: 'Vendors', icon: 'vendors' },
   { id: 'items', label: 'Items', icon: 'items' },
@@ -43,6 +46,7 @@ export default function App() {
   const [debitNotes, setDebitNotes] = useState([])
   const [stockMovements, setStockMovements] = useState([])
   const [estimates, setEstimates] = useState([])
+  const [recurringTemplates, setRecurringTemplates] = useState([])
   const [tab, setTab] = useState('dashboard')
   const [navOpen, setNavOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -116,9 +120,61 @@ export default function App() {
       watchOrgCollection(org.id, 'debitNotes', setDebitNotes, 'date'),
       watchOrgCollection(org.id, 'stockMovements', setStockMovements, 'date'),
       watchOrgCollection(org.id, 'estimates', setEstimates, 'date'),
+      watchOrgCollection(org.id, 'recurringTemplates', setRecurringTemplates, 'nextRunDate'),
     ]
     return () => unsubs.forEach((unsub) => unsub())
   }, [org])
+
+  // Generate the next invoice for any recurring template whose scheduled
+  // date has arrived. This only runs when the app is open - there's no
+  // server here to fire it in the background while nobody's looking, so a
+  // template just catches up the next time someone loads Khata Cloud on or
+  // after its due date. generatingRef guards against firing twice for the
+  // same scheduled run while the write is still in flight (this effect can
+  // re-run before the Firestore snapshot listener reports the template's
+  // advanced nextRunDate).
+  const generatingRef = useRef({})
+  useEffect(() => {
+    if (!org || accounts.length === 0) return
+    const dueTemplates = recurringTemplates.filter(
+      (template) => isTemplateDue(template) && generatingRef.current[template.id] !== template.nextRunDate,
+    )
+    if (dueTemplates.length === 0) return
+    dueTemplates.forEach(async (template) => {
+      generatingRef.current[template.id] = template.nextRunDate
+      const gst = calcGst(
+        round2(template.items.reduce((total, item) => total + (Number(item.qty) || 0) * (Number(item.rate) || 0), 0)),
+        template.gstPercent,
+        template.interState,
+      )
+      const number = `${org.invoicePrefix || 'INV'}-${String(invoices.length + 1).padStart(4, '0')}`
+      const docData = {
+        number,
+        date: template.nextRunDate,
+        dueDate: template.nextRunDate,
+        partyName: template.partyName,
+        items: template.items,
+        gstPercent: template.gstPercent,
+        interState: template.interState,
+        amountPaid: 0,
+        adjustedAmount: 0,
+        ...gst,
+      }
+      const lines = buildInvoiceJournalLines(accounts, gst)
+      const journalEntryId = await addOrgDoc(org.id, 'journalEntries', {
+        date: template.nextRunDate,
+        narration: `Invoice ${number} - ${template.partyName} (recurring)`,
+        lines,
+        source: 'invoice',
+      })
+      await addOrgDoc(org.id, 'invoices', { ...docData, journalEntryId })
+      await setOrgDoc(org.id, 'recurringTemplates', template.id, {
+        nextRunDate: advanceDate(template.nextRunDate, template.frequency),
+        generatedCount: (Number(template.generatedCount) || 0) + 1,
+        lastGeneratedDate: template.nextRunDate,
+      })
+    })
+  }, [org, accounts, recurringTemplates, invoices.length])
 
   if (!isFirebaseConfigured) {
     return <div className="auth-screen"><div className="auth-card"><p>Firebase is not configured for Khata Cloud.</p></div></div>
@@ -186,6 +242,7 @@ export default function App() {
           {tab === 'estimates' && <Estimates orgId={org.id} accounts={accounts} estimates={estimates} invoices={invoices} customers={customers} items={items} org={org} />}
           {tab === 'invoices' && <Invoices orgId={org.id} accounts={accounts} invoices={invoices} customers={customers} items={items} creditNotes={creditNotes} entries={entries} org={org} />}
           {tab === 'bills' && <Bills orgId={org.id} accounts={accounts} bills={bills} vendors={vendors} items={items} debitNotes={debitNotes} entries={entries} org={org} />}
+          {tab === 'recurring' && <Recurring orgId={org.id} templates={recurringTemplates} customers={customers} items={items} />}
           {tab === 'customers' && <Customers orgId={org.id} customers={customers} />}
           {tab === 'vendors' && <Vendors orgId={org.id} vendors={vendors} />}
           {tab === 'items' && <Items orgId={org.id} items={items} movements={stockMovements} />}

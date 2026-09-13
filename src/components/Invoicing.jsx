@@ -384,6 +384,22 @@ function DocumentForm({ orgId, accounts, documents, contacts, items, notes, entr
                     {!item.voided && status !== 'paid' && payingId !== item.id && (
                       <button type="button" className="action-pill success" onClick={() => setPayingId(item.id)}><Icon name="payment" size={13} />Record payment</button>
                     )}
+                    {config.showReminders && !item.voided && status !== 'paid' && (() => {
+                      const contact = contacts.find((entry) => entry.name === item.partyName)
+                      const message = `Hi ${item.partyName}, a reminder that ${config.docLabel} ${item.number} for Rs. ${due.toFixed(2)} is ${overdue ? 'overdue since' : 'due on'} ${item.dueDate || computeDueDate(item)}. Please arrange payment at your convenience. Thank you!`
+                      const mailHref = `mailto:${contact?.email || ''}?subject=${encodeURIComponent(`Payment reminder - ${item.number}`)}&body=${encodeURIComponent(message)}`
+                      const waDigits = (contact?.phone || '').replace(/\D/g, '')
+                      return (
+                        <>
+                          <a className="action-pill info" href={mailHref}><Icon name="mail" size={13} />Email</a>
+                          {waDigits && (
+                            <a className="action-pill success" href={`https://wa.me/${waDigits}?text=${encodeURIComponent(message)}`} target="_blank" rel="noreferrer">
+                              <Icon name="chat" size={13} />WhatsApp
+                            </a>
+                          )}
+                        </>
+                      )
+                    })()}
                     {canNote && notingId !== item.id && (
                       <button type="button" className="action-pill info" onClick={() => setNotingId(item.id)}><Icon name="note" size={13} />{config.noteLabel}</button>
                     )}
@@ -466,6 +482,7 @@ export function Invoices({ orgId, accounts, invoices, customers, items, creditNo
         notesCollection: 'creditNotes',
         noteSource: 'credit-note',
         buildNoteLines: buildCreditNoteJournalLines,
+        showReminders: true,
         stockSign: -1,
         requiredAccountNames: ['Accounts Receivable', 'Cash', 'Sales Revenue', 'GST Payable'],
         buildLines: buildInvoiceJournalLines,

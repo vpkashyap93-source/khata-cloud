@@ -308,6 +308,35 @@ export const canVoid = (doc) => !doc.voided && (Number(doc.amountPaid) || 0) ===
 
 export const DEFAULT_PAYMENT_TERM_DAYS = 30
 
+export const RECURRING_FREQUENCIES = [
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'quarterly', label: 'Quarterly' },
+  { value: 'yearly', label: 'Yearly' },
+]
+
+// Advance a YYYY-MM-DD date by one occurrence of a recurring frequency -
+// used to schedule the next run of a recurring invoice template. Uses the
+// calendar month/year, not a fixed day-count, so "monthly from the 31st"
+// lands on the last day of shorter months instead of overflowing.
+export const advanceDate = (dateStr, frequency) => {
+  const date = new Date(dateStr)
+  if (frequency === 'weekly') date.setDate(date.getDate() + 7)
+  else if (frequency === 'quarterly') date.setMonth(date.getMonth() + 3)
+  else if (frequency === 'yearly') date.setFullYear(date.getFullYear() + 1)
+  else date.setMonth(date.getMonth() + 1)
+  return date.toISOString().slice(0, 10)
+}
+
+// Whether a recurring template's next invoice is ready to be generated:
+// still active, not past its own end date, and its scheduled run date has
+// arrived.
+export const isTemplateDue = (template, today = new Date().toISOString().slice(0, 10)) => {
+  if (!template.active) return false
+  if (template.endDate && template.endDate < today) return false
+  return template.nextRunDate <= today
+}
+
 // A document's due date - its own explicit `dueDate` if one was set,
 // otherwise the org's default payment term counted from the issue date, so
 // documents created before this field existed still get a sensible date
