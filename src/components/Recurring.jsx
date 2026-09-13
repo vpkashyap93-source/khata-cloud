@@ -181,6 +181,7 @@ function RecurringTemplates({ orgId, templates, contacts, items, config }) {
               {template.active ? `Next ${config.docWord.toLowerCase()}: ${template.nextRunDate}` : 'Paused'}
               {template.generatedCount > 0 && ` · ${template.generatedCount} generated so far`}
               {template.endDate && ` · ends ${template.endDate}`}
+              {template.createdBy && <span className="voucher-by"> · set up by {template.createdBy}</span>}
             </p>
             <div className="action-pills">
               <button type="button" className={`action-pill ${template.active ? 'danger' : 'success'}`} onClick={() => toggleActive(template)}>

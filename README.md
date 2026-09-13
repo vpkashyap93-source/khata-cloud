@@ -115,6 +115,13 @@ Balance Sheet reports - all backed by Firebase, in real time.
   security rules" below - this needs a one-time rule change to actually
   take effect, since the org id no longer equals the only uid allowed to
   touch it.
+- **Audit trail**: every save is stamped with who made it - `createdBy` on
+  new records, `lastModifiedBy`/`lastModifiedAt` on updates - centrally in
+  `addOrgDoc`/`setOrgDoc` (`src/firebase.js`), so it applies everywhere
+  without every screen having to remember to pass it along. Shown as "by
+  someone@example.com" on Journal entries, Invoices/Bills, and Recurring
+  templates - useful now that a business can have more than one person on
+  its books (see Team, above).
 
 ## Run locally
 

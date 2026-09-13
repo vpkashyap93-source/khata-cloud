@@ -374,7 +374,10 @@ function DocumentForm({ orgId, accounts, documents, contacts, items, notes, entr
                 <td>{item.number}</td>
                 <td>{item.date}</td>
                 <td className={overdue ? 'overdue-date' : ''}>{item.dueDate || computeDueDate(item)}</td>
-                <td>{item.partyName}</td>
+                <td>
+                  {item.partyName}
+                  {item.createdBy && <div className="voucher-by">by {item.createdBy}</div>}
+                </td>
                 <td className="amt">{Number(item.total).toFixed(2)}</td>
                 <td className="amt">{due.toFixed(2)}</td>
                 <td><span className={`status-pill ${pillClass}`}>{statusLabel}</span></td>

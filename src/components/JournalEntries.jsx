@@ -201,7 +201,10 @@ export default function JournalEntries({ orgId, accounts, entries }) {
               </div>
               <div className="voucher-amount">{money(sumLines(entry.lines, 'debit'))}</div>
             </div>
-            <p className="voucher-narration">{entry.narration}</p>
+            <p className="voucher-narration">
+              {entry.narration}
+              {entry.createdBy && <span className="voucher-by"> · by {entry.createdBy}</span>}
+            </p>
             <table className="voucher-table">
               <tbody>
                 {entry.lines.map((line, i) => (

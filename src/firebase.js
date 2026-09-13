@@ -148,13 +148,21 @@ export const watchOrgCollection = (orgId, name, callback, orderField = 'createdA
   })
 }
 
+// Every write is stamped with who made it (createdBy / lastModifiedBy, the
+// signed-in user's email) here - centrally, once - so every screen's audit
+// trail (who posted this invoice, who voided that entry) comes for free
+// without each component having to remember to pass it along.
 export const addOrgDoc = async (orgId, name, data) => {
   const ref = doc(collection(db, 'orgs', orgId, name))
-  await setDoc(ref, { ...data, createdAt: serverTimestamp() })
+  await setDoc(ref, { ...data, createdAt: serverTimestamp(), createdBy: auth?.currentUser?.email || '' })
   return ref.id
 }
 
 export const setOrgDoc = (orgId, name, docId, data) =>
-  setDoc(doc(db, 'orgs', orgId, name, docId), data, { merge: true })
+  setDoc(
+    doc(db, 'orgs', orgId, name, docId),
+    { ...data, lastModifiedAt: serverTimestamp(), lastModifiedBy: auth?.currentUser?.email || '' },
+    { merge: true },
+  )
 
 export { db }
