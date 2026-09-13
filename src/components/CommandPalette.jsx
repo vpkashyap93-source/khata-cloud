@@ -67,6 +67,14 @@ export default function CommandPalette({ open, onClose, onNavigate, nav, data })
       })
     }
 
+    const purchaseOrderMatches = cap(data.purchaseOrders.filter((doc) => match(doc.number, doc.partyName)))
+    if (purchaseOrderMatches.length) {
+      results.push({
+        title: 'Purchase Orders',
+        items: purchaseOrderMatches.map((doc) => ({ label: `${doc.number} - ${doc.partyName}`, sub: money(doc.total), onSelect: () => onNavigate('purchaseOrders') })),
+      })
+    }
+
     const customerMatches = cap(data.customers.filter((contact) => match(contact.name)))
     if (customerMatches.length) {
       results.push({ title: 'Customers', items: customerMatches.map((contact) => ({ label: contact.name, onSelect: () => onNavigate('customers') })) })

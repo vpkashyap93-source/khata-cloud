@@ -7,6 +7,7 @@ import ChartOfAccounts from './components/ChartOfAccounts.jsx'
 import JournalEntries from './components/JournalEntries.jsx'
 import { Invoices, Bills } from './components/Invoicing.jsx'
 import Estimates from './components/Estimates.jsx'
+import PurchaseOrders from './components/PurchaseOrders.jsx'
 import { RecurringInvoices, RecurringBills } from './components/Recurring.jsx'
 import Reconciliation from './components/Reconciliation.jsx'
 import TransferFunds from './components/TransferFunds.jsx'
@@ -26,6 +27,7 @@ const NAV = [
   { id: 'journal', label: 'Journal', icon: 'journal' },
   { id: 'estimates', label: 'Estimates', icon: 'estimates' },
   { id: 'invoices', label: 'Sales Invoices', icon: 'invoices' },
+  { id: 'purchaseOrders', label: 'Purchase Orders', icon: 'bills' },
   { id: 'bills', label: 'Purchase Bills', icon: 'bills' },
   { id: 'recurring', label: 'Recurring Invoices', icon: 'repeat' },
   { id: 'recurringBills', label: 'Recurring Bills', icon: 'repeat' },
@@ -53,6 +55,7 @@ export default function App() {
   const [debitNotes, setDebitNotes] = useState([])
   const [stockMovements, setStockMovements] = useState([])
   const [estimates, setEstimates] = useState([])
+  const [purchaseOrders, setPurchaseOrders] = useState([])
   const [recurringTemplates, setRecurringTemplates] = useState([])
   const [reconciledEntries, setReconciledEntries] = useState([])
   const [members, setMembers] = useState([])
@@ -140,6 +143,7 @@ export default function App() {
       watchOrgCollection(org.id, 'debitNotes', setDebitNotes, 'date'),
       watchOrgCollection(org.id, 'stockMovements', setStockMovements, 'date'),
       watchOrgCollection(org.id, 'estimates', setEstimates, 'date'),
+      watchOrgCollection(org.id, 'purchaseOrders', setPurchaseOrders, 'date'),
       watchOrgCollection(org.id, 'recurringTemplates', setRecurringTemplates, 'nextRunDate'),
       watchOrgCollection(org.id, 'reconciledEntries', setReconciledEntries, 'accountId'),
       watchOrgCollection(org.id, 'members', setMembers, 'joinedAt'),
@@ -274,6 +278,7 @@ export default function App() {
           {tab === 'openingBalances' && <OpeningBalances orgId={org.id} accounts={accounts} customers={customers} vendors={vendors} invoices={invoices} bills={bills} />}
           {tab === 'journal' && <JournalEntries orgId={org.id} accounts={accounts} entries={entries} />}
           {tab === 'estimates' && <Estimates orgId={org.id} accounts={accounts} estimates={estimates} invoices={invoices} customers={customers} items={items} org={org} />}
+          {tab === 'purchaseOrders' && <PurchaseOrders orgId={org.id} accounts={accounts} purchaseOrders={purchaseOrders} bills={bills} vendors={vendors} items={items} org={org} />}
           {tab === 'invoices' && <Invoices orgId={org.id} accounts={accounts} invoices={invoices} customers={customers} items={items} creditNotes={creditNotes} entries={entries} org={org} />}
           {tab === 'bills' && <Bills orgId={org.id} accounts={accounts} bills={bills} vendors={vendors} items={items} debitNotes={debitNotes} entries={entries} org={org} />}
           {tab === 'recurring' && <RecurringInvoices orgId={org.id} templates={recurringTemplates} customers={customers} items={items} />}
@@ -294,7 +299,7 @@ export default function App() {
         onClose={() => setPaletteOpen(false)}
         onNavigate={selectTab}
         nav={NAV}
-        data={{ accounts, entries, invoices, bills, estimates, customers, vendors, items }}
+        data={{ accounts, entries, invoices, bills, estimates, purchaseOrders, customers, vendors, items }}
       />
     </div>
   )

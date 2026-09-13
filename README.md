@@ -155,6 +155,12 @@ Balance Sheet reports - all backed by Firebase, in real time.
   directly on the org doc, so it needs no Firebase Storage bucket or any
   other setup step. Shown on the printed letterhead of invoices, bills, and
   estimates.
+- **Purchase Orders**: the purchase-side mirror of Estimates
+  (`src/components/PurchaseOrders.jsx`) - a PO sent to a vendor before a
+  bill, same shape (party, items, GST) but no accounting effect of its own
+  until "Convert to Bill" posts the real bill and journal entry, reusing
+  `buildBillJournalLines` exactly the way Estimates reuses
+  `buildInvoiceJournalLines`.
 
 ## Run locally
 
