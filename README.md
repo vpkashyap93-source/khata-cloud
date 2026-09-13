@@ -145,6 +145,11 @@ Balance Sheet reports - all backed by Firebase, in real time.
   one journal entry and never touches Profit &amp; Loss; voidable from the
   Journal like a manual entry, since it's a self-contained transaction
   nothing else depends on.
+- **Search &amp; date filter**: Sales Invoices and Purchase Bills have a
+  search box (party name or number) and a From/To date range above the
+  list (`src/components/Invoicing.jsx`), filtered client-side over the
+  data already on screen - no extra query - so finding an old invoice
+  doesn't mean scrolling through everything that came after it.
 
 ## Run locally
 

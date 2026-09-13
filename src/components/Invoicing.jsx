@@ -204,6 +204,9 @@ function DocumentForm({ orgId, accounts, documents, contacts, items, notes, entr
   const [payingId, setPayingId] = useState(null)
   const [notingId, setNotingId] = useState(null)
   const [printingDoc, setPrintingDoc] = useState(null)
+  const [search, setSearch] = useState('')
+  const [filterFrom, setFilterFrom] = useState('')
+  const [filterTo, setFilterTo] = useState('')
 
   const updateItem = (index, field, value) => {
     setLineItems((prev) => prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)))
@@ -219,6 +222,17 @@ function DocumentForm({ orgId, accounts, documents, contacts, items, notes, entr
 
   const subtotal = round2(lineItems.reduce((total, item) => total + (Number(item.qty) || 0) * (Number(item.rate) || 0), 0))
   const gst = calcGst(subtotal, gstPercent, interState)
+
+  const filteredDocuments = documents.filter((item) => {
+    if (search) {
+      const query = search.trim().toLowerCase()
+      const matches = item.partyName?.toLowerCase().includes(query) || item.number?.toLowerCase().includes(query)
+      if (!matches) return false
+    }
+    if (filterFrom && item.date < filterFrom) return false
+    if (filterTo && item.date > filterTo) return false
+    return true
+  })
 
   const submit = async (event) => {
     event.preventDefault()
@@ -361,10 +375,36 @@ function DocumentForm({ orgId, accounts, documents, contacts, items, notes, entr
       </form>
 
       <h3>Recent {config.title.toLowerCase()}</h3>
+      <div className="journal-header-row">
+        <label className="grow">
+          Search
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={`${config.partyLabel} or number`}
+          />
+        </label>
+        <label>
+          From
+          <input type="date" value={filterFrom} onChange={(event) => setFilterFrom(event.target.value)} />
+        </label>
+        <label>
+          To
+          <input type="date" value={filterTo} onChange={(event) => setFilterTo(event.target.value)} />
+        </label>
+        {(search || filterFrom || filterTo) && (
+          <button type="button" className="link-button" onClick={() => { setSearch(''); setFilterFrom(''); setFilterTo('') }}>
+            Clear filters
+          </button>
+        )}
+      </div>
+      {filteredDocuments.length !== documents.length && (
+        <p className="section-sub">Showing {filteredDocuments.length} of {documents.length}</p>
+      )}
       <table>
         <thead><tr><th>#</th><th>Date</th><th>Due date</th><th>{config.partyLabel}</th><th className="amt">Total</th><th className="amt">Balance due</th><th>Status</th><th /></tr></thead>
         <tbody>
-          {documents.map((item) => {
+          {filteredDocuments.map((item) => {
             const { due, status } = balanceDue(item)
             const canNote = !item.voided && creditableAmount(item) > 0
             const overdue = isOverdue(item)
@@ -415,14 +455,17 @@ function DocumentForm({ orgId, accounts, documents, contacts, items, notes, entr
               </tr>
             )
           })}
-          {documents.map((item) => payingId === item.id && (
+          {filteredDocuments.length === 0 && (
+            <tr><td colSpan={8} className="empty-note">{documents.length === 0 ? `No ${config.title.toLowerCase()} yet.` : 'No matches for this filter.'}</td></tr>
+          )}
+          {filteredDocuments.map((item) => payingId === item.id && (
             <tr key={`pay-${item.id}`}>
               <td colSpan={8}>
                 <RecordPayment orgId={orgId} doc={item} accounts={accounts} config={config} onDone={() => setPayingId(null)} />
               </td>
             </tr>
           ))}
-          {documents.map((item) => notingId === item.id && (
+          {filteredDocuments.map((item) => notingId === item.id && (
             <tr key={`note-${item.id}`}>
               <td colSpan={8}>
                 <IssueNote orgId={orgId} doc={item} accounts={accounts} config={config} notesCount={notes.length} onDone={() => setNotingId(null)} />
