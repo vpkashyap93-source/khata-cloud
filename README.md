@@ -150,6 +150,11 @@ Balance Sheet reports - all backed by Firebase, in real time.
   list (`src/components/Invoicing.jsx`), filtered client-side over the
   data already on screen - no extra query - so finding an old invoice
   doesn't mean scrolling through everything that came after it.
+- **Logo on invoices**: Settings → Business Profile can upload a logo -
+  resized and compressed to a small JPEG right in the browser and stored
+  directly on the org doc, so it needs no Firebase Storage bucket or any
+  other setup step. Shown on the printed letterhead of invoices, bills, and
+  estimates.
 
 ## Run locally
 

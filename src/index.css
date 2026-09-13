@@ -387,6 +387,7 @@ tfoot td { font-weight: 700; border-top: 2px solid var(--ink); border-bottom: no
 .print-letterhead { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1b2333; padding-bottom: 16px; margin-bottom: 16px; }
 .print-letterhead h1 { font-size: 1.2rem; margin: 0 0 4px; }
 .print-letterhead p { margin: 0; font-size: 0.82rem; color: #555; }
+.print-logo { max-height: 48px; max-width: 200px; object-fit: contain; display: block; margin-bottom: 6px; }
 .print-doc-meta { text-align: right; }
 .print-doc-meta h2 { margin: 0 0 4px; font-size: 1.1rem; text-transform: uppercase; letter-spacing: .04em; }
 .print-doc-meta p { margin: 0; font-size: 0.85rem; }

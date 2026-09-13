@@ -21,11 +21,42 @@ export default function Settings({ orgId, org, members }) {
     invoicePrefix: org.invoicePrefix || 'INV',
     billPrefix: org.billPrefix || 'BILL',
     paymentTermDays: org.paymentTermDays || 30,
+    logoDataUrl: org.logoDataUrl || '',
   })
   const [saved, setSaved] = useState(false)
   const [codeCopied, setCodeCopied] = useState(false)
+  const [logoError, setLogoError] = useState('')
 
   const update = (field, value) => { setForm((prev) => ({ ...prev, [field]: value })); setSaved(false) }
+
+  // Resized and re-compressed client-side into a small JPEG data URL, then
+  // stored directly on the org doc - no Firebase Storage bucket needed, so
+  // this works with zero extra setup (unlike Team's Firestore rules step).
+  // A white fill behind the draw keeps a transparent-background PNG logo
+  // from turning black, since JPEG has no transparency of its own.
+  const handleLogoFile = (file) => {
+    if (!file) return
+    setLogoError('')
+    const reader = new FileReader()
+    reader.onload = () => {
+      const img = new Image()
+      img.onload = () => {
+        const maxWidth = 320
+        const scale = Math.min(1, maxWidth / img.width)
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.round(img.width * scale)
+        canvas.height = Math.round(img.height * scale)
+        const ctx = canvas.getContext('2d')
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        update('logoDataUrl', canvas.toDataURL('image/jpeg', 0.75))
+      }
+      img.onerror = () => setLogoError('Could not read that image - try a different file.')
+      img.src = reader.result
+    }
+    reader.readAsDataURL(file)
+  }
 
   const submit = async (event) => {
     event.preventDefault()
@@ -53,6 +84,19 @@ export default function Settings({ orgId, org, members }) {
           Business name
           <input value={form.name} onChange={(event) => update('name', event.target.value)} required />
         </label>
+        <div className="journal-header-row">
+          <label>
+            Logo (optional)
+            <input type="file" accept="image/*" onChange={(event) => handleLogoFile(event.target.files?.[0])} />
+          </label>
+          {form.logoDataUrl && (
+            <>
+              <img src={form.logoDataUrl} alt="Business logo" style={{ maxHeight: 48, borderRadius: 4 }} />
+              <button type="button" className="link-button" onClick={() => update('logoDataUrl', '')}>Remove logo</button>
+            </>
+          )}
+        </div>
+        {logoError && <p className="form-error">{logoError}</p>}
         <div className="journal-header-row">
           <label>
             GSTIN

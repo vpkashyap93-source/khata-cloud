@@ -33,6 +33,7 @@ function PrintView({ doc, org, config, onClose }) {
         {doc.voided && <div className="print-watermark">VOID</div>}
         <div className="print-letterhead">
           <div>
+            {org.logoDataUrl && <img src={org.logoDataUrl} alt="" className="print-logo" />}
             <h1>{org.name || 'Your Business'}</h1>
             {org.address && <p>{org.address}</p>}
             <p>{[org.phone, org.email].filter(Boolean).join(' · ')}</p>
