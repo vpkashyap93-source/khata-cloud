@@ -81,7 +81,17 @@ export const ensureOrg = async (uid, email, joinCode) => {
   const userRef = doc(db, 'accountingUsers', uid)
   const userSnap = await getDoc(userRef)
   if (userSnap.exists() && userSnap.data().orgId) {
-    return userSnap.data().orgId
+    const orgId = userSnap.data().orgId
+    // Orgs created before the Team feature existed never got a members
+    // doc for their own owner - only a brand-new org's creation
+    // transaction does that - so isMember() (and everything gated by it)
+    // permission-denies that owner on any device without a local
+    // Firestore cache built up from before this became a requirement.
+    // This merge is idempotent and self-heals it on every sign-in;
+    // joinedAt is deliberately left out so it never resets an existing
+    // member's actual join date, just backfills the missing doc itself.
+    await setDoc(doc(db, 'orgs', orgId, 'members', uid), { email: email || '' }, { merge: true })
+    return orgId
   }
 
   const trimmedCode = (joinCode || '').trim()
