@@ -14,6 +14,8 @@ const SOURCE_LABELS = {
   'credit-note': 'Credit Note',
   'debit-note': 'Debit Note',
   void: 'Void',
+  transfer: 'Transfer',
+  'opening-balance': 'Opening Balance',
 }
 
 const SOURCE_ICONS = {
@@ -24,6 +26,8 @@ const SOURCE_ICONS = {
   'credit-note': 'note',
   'debit-note': 'note',
   void: 'void',
+  transfer: 'repeat',
+  'opening-balance': 'asset',
 }
 
 export default function JournalEntries({ orgId, accounts, entries }) {
@@ -216,7 +220,7 @@ export default function JournalEntries({ orgId, accounts, entries }) {
                 ))}
               </tbody>
             </table>
-            {entry.source === 'manual' && !entry.voided && (
+            {(entry.source === 'manual' || entry.source === 'transfer') && !entry.voided && (
               <div className="action-pills">
                 <button type="button" className="action-pill danger" onClick={() => voidEntry(entry)}><Icon name="void" size={13} />Void</button>
               </div>

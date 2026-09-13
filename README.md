@@ -138,6 +138,13 @@ Balance Sheet reports - all backed by Firebase, in real time.
   second (or third) bank account in Chart of Accounts makes it show up
   everywhere a payment or reconciliation account is picked, and in the
   Dashboard's Cash &amp; Bank total, not just the two seeded by default.
+- **Transfer Funds**: moving money between your own accounts - Cash to
+  Bank, or one bank account to another - isn't income or an expense, so
+  `src/components/TransferFunds.jsx` gives it its own simple From/To/amount
+  form instead of routing everyone through a manual Journal Entry. Posts
+  one journal entry and never touches Profit &amp; Loss; voidable from the
+  Journal like a manual entry, since it's a self-contained transaction
+  nothing else depends on.
 
 ## Run locally
 

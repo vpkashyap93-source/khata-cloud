@@ -9,6 +9,7 @@ import { Invoices, Bills } from './components/Invoicing.jsx'
 import Estimates from './components/Estimates.jsx'
 import { RecurringInvoices, RecurringBills } from './components/Recurring.jsx'
 import Reconciliation from './components/Reconciliation.jsx'
+import TransferFunds from './components/TransferFunds.jsx'
 import { Customers, Vendors } from './components/Contacts.jsx'
 import Items from './components/Items.jsx'
 import Settings from './components/Settings.jsx'
@@ -33,6 +34,7 @@ const NAV = [
   { id: 'items', label: 'Items', icon: 'items' },
   { id: 'ledger', label: 'Ledger', icon: 'ledger' },
   { id: 'reconciliation', label: 'Reconciliation', icon: 'check' },
+  { id: 'transfer', label: 'Transfer Funds', icon: 'repeat' },
   { id: 'reports', label: 'Reports', icon: 'reports' },
   { id: 'settings', label: 'Settings', icon: 'settings' },
 ]
@@ -281,6 +283,7 @@ export default function App() {
           {tab === 'items' && <Items orgId={org.id} items={items} movements={stockMovements} />}
           {tab === 'ledger' && <Ledger accounts={accounts} entries={entries} />}
           {tab === 'reconciliation' && <Reconciliation orgId={org.id} accounts={accounts} entries={entries} reconciledEntries={reconciledEntries} />}
+          {tab === 'transfer' && <TransferFunds orgId={org.id} accounts={accounts} entries={entries} />}
           {tab === 'reports' && <Reports accounts={accounts} entries={entries} invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} />}
           {tab === 'settings' && <Settings orgId={org.id} org={org} members={members} />}
         </main>
