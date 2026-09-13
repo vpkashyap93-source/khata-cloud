@@ -5,6 +5,8 @@ import { buildGstr1 } from '../lib/gstr1.js'
 import { buildPurchaseRegister } from '../lib/purchaseRegister.js'
 import { parseGstr2bRows, reconcileGstr2b } from '../lib/gstr2bReconcile.js'
 import { buildGstr3b } from '../lib/gstr3b.js'
+import { buildGstr9, financialYearRange } from '../lib/gstr9.js'
+import { buildGstr9cCore } from '../lib/gstr9c.js'
 import Icon from './icons.jsx'
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -825,6 +827,190 @@ function Gstr3bSummary({ invoices, bills, creditNotes, debitNotes, customers, it
   )
 }
 
+// GSTR-9, the annual return, in the same worksheet shape as GSTR-3B but
+// rolled up over the full financial year (1 April - 31 March) instead of
+// one period - see buildGstr9 in src/lib/gstr9.js for exactly what it
+// covers and leaves out.
+function Gstr9Annual({ invoices, bills, creditNotes, debitNotes, items }) {
+  const defaultRange = financialYearRange()
+  const [from, setFrom] = useState(defaultRange.from)
+  const [to, setTo] = useState(defaultRange.to)
+  const worksheet = buildGstr9(invoices, bills, creditNotes, debitNotes, items, from, to)
+  const { outwardSupplies, itcAvailed, setOff, hsn, totalPayable, totalItc, totalCash } = worksheet
+
+  const exportCsv = () => {
+    downloadCsv(`gstr9-annual-${from}-to-${to}.csv`, [
+      ['Part II - Outward supplies (annual)', 'Taxable Value', 'IGST', 'CGST', 'SGST'],
+      ['', amt(outwardSupplies.taxable), amt(outwardSupplies.igst), amt(outwardSupplies.cgst), amt(outwardSupplies.sgst)],
+      [],
+      ['Part III - ITC availed (annual, all other ITC)', 'IGST', 'CGST', 'SGST'],
+      ['', amt(itcAvailed.igst), amt(itcAvailed.cgst), amt(itcAvailed.sgst)],
+      [],
+      ['Part IV - Tax paid (annual)', 'IGST', 'CGST', 'SGST', 'Total'],
+      ['Tax payable', amt(outwardSupplies.igst), amt(outwardSupplies.cgst), amt(outwardSupplies.sgst), amt(totalPayable)],
+      ['Paid through ITC', amt(round2(outwardSupplies.igst - setOff.cashIgst)), amt(round2(outwardSupplies.cgst - setOff.cashCgst)), amt(round2(outwardSupplies.sgst - setOff.cashSgst)), amt(round2(totalPayable - totalCash))],
+      ['Paid in cash', amt(setOff.cashIgst), amt(setOff.cashCgst), amt(setOff.cashSgst), amt(totalCash)],
+      [],
+      ['Part VI - HSN/SAC-wise outward supplies (Table 17)', 'Taxable Value', 'CGST', 'SGST', 'IGST'],
+      ...hsn.map((row) => ['', row.code, amt(row.taxable), amt(row.cgst), amt(row.sgst), amt(row.igst)]),
+    ])
+  }
+
+  return (
+    <>
+      <div className="journal-header-row">
+        <label>From <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
+        <label>To <input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
+      </div>
+      <p className="section-sub">
+        A once-a-year roll-up of the same figures GSTR-1 and GSTR-3B already report monthly, defaulted to the
+        current financial year ({defaultRange.label}) - change the dates for an earlier year. Filled in directly on
+        the portal like GSTR-3B, so copy this across rather than uploading it, and check it against the 12 months of
+        returns actually filed. Leaves out exports, advances, reverse charge, and amendments to prior-year figures
+        (Part V) - none of which this app tracks.
+      </p>
+      <ExportButton onClick={exportCsv} />
+      <div className="report-summary">
+        <div className="report-stat">
+          <div className="report-stat-label">Tax Payable</div>
+          <div className="report-stat-value">{money(totalPayable)}</div>
+        </div>
+        <div className="report-stat">
+          <div className="report-stat-label">ITC Availed</div>
+          <div className="report-stat-value">{money(totalItc)}</div>
+        </div>
+        <div className="report-stat">
+          <div className="report-stat-label">Net Paid in Cash</div>
+          <div className={`report-stat-value ${totalCash > 0 ? 'red' : 'green'}`}>{money(totalCash)}</div>
+        </div>
+      </div>
+
+      <p className="report-section-title">Part II - Outward supplies (annual)</p>
+      <table>
+        <thead><tr><th className="amt">Taxable value</th><th className="amt">IGST</th><th className="amt">CGST</th><th className="amt">SGST</th></tr></thead>
+        <tbody>
+          <tr>
+            <td className="amt">{money(outwardSupplies.taxable)}</td>
+            <td className="amt">{money(outwardSupplies.igst)}</td>
+            <td className="amt">{money(outwardSupplies.cgst)}</td>
+            <td className="amt">{money(outwardSupplies.sgst)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p className="report-section-title">Part III - ITC availed (annual, all other ITC)</p>
+      <table>
+        <thead><tr><th className="amt">IGST</th><th className="amt">CGST</th><th className="amt">SGST</th></tr></thead>
+        <tbody>
+          <tr>
+            <td className="amt">{money(itcAvailed.igst)}</td>
+            <td className="amt">{money(itcAvailed.cgst)}</td>
+            <td className="amt">{money(itcAvailed.sgst)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p className="report-section-title">Part IV - Tax paid (annual)</p>
+      <table>
+        <thead><tr><th></th><th className="amt">IGST</th><th className="amt">CGST</th><th className="amt">SGST</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Tax payable</td>
+            <td className="amt">{money(outwardSupplies.igst)}</td>
+            <td className="amt">{money(outwardSupplies.cgst)}</td>
+            <td className="amt">{money(outwardSupplies.sgst)}</td>
+          </tr>
+          <tr>
+            <td>Paid through ITC</td>
+            <td className="amt">{money(round2(outwardSupplies.igst - setOff.cashIgst))}</td>
+            <td className="amt">{money(round2(outwardSupplies.cgst - setOff.cashCgst))}</td>
+            <td className="amt">{money(round2(outwardSupplies.sgst - setOff.cashSgst))}</td>
+          </tr>
+          <tr>
+            <td>Paid in cash</td>
+            <td className="amt">{money(setOff.cashIgst)}</td>
+            <td className="amt">{money(setOff.cashCgst)}</td>
+            <td className="amt">{money(setOff.cashSgst)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p className="report-section-title">Part VI - HSN/SAC-wise outward supplies (Table 17)</p>
+      <table>
+        <thead><tr><th>Code</th><th className="amt">Taxable value</th><th className="amt">CGST</th><th className="amt">SGST</th><th className="amt">IGST</th></tr></thead>
+        <tbody>
+          {hsn.map((row) => (
+            <tr key={row.code}>
+              <td>{row.code}</td>
+              <td className="amt">{money(row.taxable)}</td>
+              <td className="amt">{money(row.cgst)}</td>
+              <td className="amt">{money(row.sgst)}</td>
+              <td className="amt">{money(row.igst)}</td>
+            </tr>
+          ))}
+          {hsn.length === 0 && <tr><td colSpan={5} className="empty-note">No sales with line items in this year.</td></tr>}
+        </tbody>
+      </table>
+    </>
+  )
+}
+
+// The core of GSTR-9C - turnover per books vs. turnover per GST returns -
+// see buildGstr9cCore in src/lib/gstr9c.js for why this covers only that
+// one comparison rather than the official form's full reconciliation.
+function Gstr9cReconciliation({ accounts, entries, invoices }) {
+  const defaultRange = financialYearRange()
+  const [from, setFrom] = useState(defaultRange.from)
+  const [to, setTo] = useState(defaultRange.to)
+  const { booksTurnover, gstTurnover, difference } = buildGstr9cCore(accounts, entries, invoices, from, to)
+  const matches = Math.abs(difference) < 1
+
+  const exportCsv = () => {
+    downloadCsv(`gstr9c-reconciliation-${from}-to-${to}.csv`, [
+      ['Turnover as per Profit & Loss (books)', amt(booksTurnover)],
+      ['Turnover as per GST returns (invoices)', amt(gstTurnover)],
+      ['Difference', amt(difference)],
+    ])
+  }
+
+  return (
+    <>
+      <div className="journal-header-row">
+        <label>From <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
+        <label>To <input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
+      </div>
+      <p className="section-sub">
+        GSTR-9C&apos;s central check, not the full official form: turnover booked in Profit &amp; Loss for the year
+        against taxable sales reported through invoices for the same year. If this app is the only place the
+        business books its sales, the two should already match - a gap here is worth chasing down (a manual journal
+        entry posted straight to Sales Revenue without an invoice, for one) before it becomes a bigger one on the
+        actual 9C. The full form (turnover adjustments, ITC reconciliation, and certification) needs a CA and
+        audited financial statements this app doesn&apos;t have.
+      </p>
+      <ExportButton onClick={exportCsv} />
+      <div className="report-summary">
+        <div className="report-stat">
+          <div className="report-stat-label">Turnover per Books</div>
+          <div className="report-stat-value">{money(booksTurnover)}</div>
+        </div>
+        <div className="report-stat">
+          <div className="report-stat-label">Turnover per GST Returns</div>
+          <div className="report-stat-value">{money(gstTurnover)}</div>
+        </div>
+        <div className="report-stat">
+          <div className="report-stat-label">Difference</div>
+          <div className={`report-stat-value ${matches ? 'green' : 'red'}`}>{money(Math.abs(difference))}</div>
+        </div>
+      </div>
+      <p className={matches ? 'auth-info' : 'form-error'}>
+        {matches
+          ? "These match, within rounding - nothing to reconcile."
+          : "These don't match - check for manual journal entries to Sales Revenue that didn't go through an invoice, or invoices whose date range doesn't line up with when the sale was recognized in Profit & Loss."}
+      </p>
+    </>
+  )
+}
+
 function Aging({ invoices, bills }) {
   const receivables = computeAging(invoices)
   const payables = computeAging(bills)
@@ -896,6 +1082,8 @@ export default function Reports({ accounts, entries, invoices, bills, creditNote
         <button className={tab === 'purchaseRegister' ? 'active' : ''} onClick={() => setTab('purchaseRegister')}>Purchase Register</button>
         <button className={tab === 'gstr2b' ? 'active' : ''} onClick={() => setTab('gstr2b')}>GSTR-2B Match</button>
         <button className={tab === 'gstr3b' ? 'active' : ''} onClick={() => setTab('gstr3b')}>GSTR-3B Summary</button>
+        <button className={tab === 'gstr9' ? 'active' : ''} onClick={() => setTab('gstr9')}>GSTR-9 Annual</button>
+        <button className={tab === 'gstr9c' ? 'active' : ''} onClick={() => setTab('gstr9c')}>GSTR-9C Reconciliation</button>
         <button className={tab === 'aging' ? 'active' : ''} onClick={() => setTab('aging')}>Aging</button>
       </div>
       {tab === 'trial' && <TrialBalance accounts={accounts} entries={entries} />}
@@ -906,6 +1094,8 @@ export default function Reports({ accounts, entries, invoices, bills, creditNote
       {tab === 'purchaseRegister' && <PurchaseRegister bills={bills} debitNotes={debitNotes} vendors={vendors} items={items} />}
       {tab === 'gstr2b' && <Gstr2bMatch bills={bills} vendors={vendors} />}
       {tab === 'gstr3b' && <Gstr3bSummary invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} customers={customers} items={items} />}
+      {tab === 'gstr9' && <Gstr9Annual invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} items={items} />}
+      {tab === 'gstr9c' && <Gstr9cReconciliation accounts={accounts} entries={entries} invoices={invoices} />}
       {tab === 'aging' && <Aging invoices={invoices} bills={bills} />}
     </div>
   )

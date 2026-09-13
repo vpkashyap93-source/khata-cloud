@@ -11,7 +11,7 @@ import { STATE_NAME_BY_CODE } from './gstStateCodes.js'
 // that's genuinely a calculation rather than a re-grouping of numbers
 // already in the books, so it's worth double-checking against the
 // portal's own auto-computed set-off before paying.
-const settleTax = ({ igstPayable, cgstPayable, sgstPayable, igstItc, cgstItc, sgstItc }) => {
+export const computeItcSetOff = ({ igstPayable, cgstPayable, sgstPayable, igstItc, cgstItc, sgstItc }) => {
   let igstItcLeft = igstItc
   let cgstItcLeft = cgstItc
   let sgstItcLeft = sgstItc
@@ -79,7 +79,7 @@ export const buildGstr3b = (invoices, bills, creditNotes, debitNotes, customers,
     .map((row) => ({ ...row, stateName: STATE_NAME_BY_CODE[row.pos] || row.pos }))
     .sort((a, b) => a.stateName.localeCompare(b.stateName))
 
-  const setOff = settleTax({
+  const setOff = computeItcSetOff({
     igstPayable: sales.igst, cgstPayable: sales.cgst, sgstPayable: sales.sgst,
     igstItc: purchases.igst, cgstItc: purchases.cgst, sgstItc: purchases.sgst,
   })

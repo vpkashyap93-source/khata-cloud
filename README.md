@@ -255,6 +255,27 @@ Balance Sheet reports - all backed by Firebase, in real time.
   head separately, since that would overstate cash due whenever IGST
   credit is available to cover a CGST/SGST shortfall - still worth
   checking against the portal's own set-off calculation before paying.
+- **GSTR-9 Annual**: Reports -> GSTR-9 Annual is the same worksheet as
+  GSTR-3B rolled up over a financial year (1 April - 31 March, defaulted
+  to the current one - `financialYearRange` in `src/lib/gstr9.js`) instead
+  of one period, since GSTR-9 (the annual return) is itself a once-a-year
+  roll-up of the same figures already reported monthly. Adds Part VI, an
+  annual HSN-wise summary. Same gaps as GSTR-3B (no exports, advances, or
+  reverse charge) plus Part V (amendments to prior-year figures in
+  returns filed this year) - also filled in directly on the portal, so
+  copy it across and check it against the 12 months of returns actually
+  filed for the year.
+- **GSTR-9C Reconciliation**: Reports -> GSTR-9C Reconciliation covers
+  only that form's central check - turnover per Profit & Loss against
+  turnover per GST returns for the year (`buildGstr9cCore` in
+  `src/lib/gstr9c.js`) - not the full official form, which needs audited
+  financial statements and a dozen adjustment categories (discounts,
+  unbilled revenue, deemed supplies) this app has no way to know about.
+  In a business that books all its sales through this app the two totals
+  should already match; a mismatch here is worth chasing down (most often
+  a manual journal entry credited straight to Sales Revenue without going
+  through an invoice) before it becomes a bigger one on the actual 9C,
+  which still needs a CA to prepare and certify.
 
 ## Run locally
 
