@@ -316,6 +316,18 @@ Pushing to `main` builds and deploys this app to GitHub Pages via
 `.github/workflows/deploy.yml` (Settings → Pages → Source must be set
 to "GitHub Actions" once, the first time).
 
+## Deploying to Vercel instead (or as well)
+
+This is a static Vite build with a Firebase backend, so it deploys to
+Vercel with no extra setup: on [vercel.com](https://vercel.com), "Add
+New Project" → import this repo → Deploy. Vercel auto-detects the Vite
+framework preset, and `vite.config.js` already switches its base path
+to `/` on Vercel's own build (it sets `VERCEL=1` automatically) versus
+`/khata-cloud/` for a GitHub Pages build - so the same repo deploys
+correctly to either host, or both at once, with no config changes.
+Every push to the connected branch redeploys automatically; no
+workflow file is needed for the Vercel side.
+
 ## Firestore security rules (required for Team to work)
 
 Team support means a business's data is no longer readable/writable only
