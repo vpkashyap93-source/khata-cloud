@@ -8,6 +8,7 @@ import JournalEntries from './components/JournalEntries.jsx'
 import { Invoices, Bills } from './components/Invoicing.jsx'
 import Estimates from './components/Estimates.jsx'
 import Recurring from './components/Recurring.jsx'
+import Reconciliation from './components/Reconciliation.jsx'
 import { Customers, Vendors } from './components/Contacts.jsx'
 import Items from './components/Items.jsx'
 import Settings from './components/Settings.jsx'
@@ -28,6 +29,7 @@ const NAV = [
   { id: 'vendors', label: 'Vendors', icon: 'vendors' },
   { id: 'items', label: 'Items', icon: 'items' },
   { id: 'ledger', label: 'Ledger', icon: 'ledger' },
+  { id: 'reconciliation', label: 'Reconciliation', icon: 'check' },
   { id: 'reports', label: 'Reports', icon: 'reports' },
   { id: 'settings', label: 'Settings', icon: 'settings' },
 ]
@@ -47,6 +49,7 @@ export default function App() {
   const [stockMovements, setStockMovements] = useState([])
   const [estimates, setEstimates] = useState([])
   const [recurringTemplates, setRecurringTemplates] = useState([])
+  const [reconciledEntries, setReconciledEntries] = useState([])
   const [tab, setTab] = useState('dashboard')
   const [navOpen, setNavOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -121,6 +124,7 @@ export default function App() {
       watchOrgCollection(org.id, 'stockMovements', setStockMovements, 'date'),
       watchOrgCollection(org.id, 'estimates', setEstimates, 'date'),
       watchOrgCollection(org.id, 'recurringTemplates', setRecurringTemplates, 'nextRunDate'),
+      watchOrgCollection(org.id, 'reconciledEntries', setReconciledEntries, 'accountId'),
     ]
     return () => unsubs.forEach((unsub) => unsub())
   }, [org])
@@ -247,6 +251,7 @@ export default function App() {
           {tab === 'vendors' && <Vendors orgId={org.id} vendors={vendors} />}
           {tab === 'items' && <Items orgId={org.id} items={items} movements={stockMovements} />}
           {tab === 'ledger' && <Ledger accounts={accounts} entries={entries} />}
+          {tab === 'reconciliation' && <Reconciliation orgId={org.id} accounts={accounts} entries={entries} reconciledEntries={reconciledEntries} />}
           {tab === 'reports' && <Reports accounts={accounts} entries={entries} invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} />}
           {tab === 'settings' && <Settings orgId={org.id} org={org} />}
         </main>

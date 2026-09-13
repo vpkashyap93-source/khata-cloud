@@ -220,6 +220,7 @@ export const computeLedger = (account, entries) => {
       entry.lines.forEach((line) => {
         if (line.accountId !== account.id) return
         rows.push({
+          entryId: entry.id,
           date: entry.date,
           narration: entry.narration,
           debit: Number(line.debit) || 0,

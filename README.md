@@ -96,6 +96,11 @@ Balance Sheet reports - all backed by Firebase, in real time.
   action-pills that open a pre-filled `mailto:`/`wa.me:` message using the
   customer's saved contact details - nothing is sent automatically, the
   business owner reviews and sends it themselves.
+- **Bank reconciliation**: tick off each Cash/Bank transaction as it shows
+  up on the real bank/passbook statement (`src/components/Reconciliation.jsx`,
+  stored per account+entry in `reconciledEntries`); the reconciled total is
+  checked against a statement closing balance you enter yourself - there's
+  no live bank feed here, so nothing is fetched or matched automatically.
 
 ## Run locally
 
@@ -119,6 +124,6 @@ to "GitHub Actions" once, the first time).
 - Inviting additional team members into an existing org (each signup
   currently gets its own single-owner org).
 - Actually filing GST returns (the GST Summary report covers what's
-  owed; filing itself is out of scope), and bank reconciliation.
+  owed; filing itself is out of scope).
 - Exporting to PDF (reports export to CSV; invoices/bills have a print
   view, which covers PDF via the browser's own print-to-PDF).
