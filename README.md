@@ -276,6 +276,18 @@ Balance Sheet reports - all backed by Firebase, in real time.
   a manual journal entry credited straight to Sales Revenue without going
   through an invoice) before it becomes a bigger one on the actual 9C,
   which still needs a CA to prepare and certify.
+- **Print / PDF for every report**: every screen under Reports (Trial
+  Balance, P&L, Balance Sheet, GST Summary, all six GST return worksheets,
+  and Aging) has a "Print / PDF" button next to its CSV export. It opens
+  the same letterhead print overlay already used for invoices and bills
+  (`ReportPrintView` in `src/components/Reports.jsx`), reusing each
+  report's own already-rendered tables as-is so the print/PDF output can
+  never drift from what's on screen - "Save as PDF" is one of the
+  destinations in the browser's own print dialog, so no PDF library is
+  needed. The print sheet's tables pin their colors to light-mode values
+  regardless of the app's current theme, so a report printed from dark
+  mode doesn't come out with an unreadable dark table header on an
+  otherwise white page.
 
 ## Run locally
 

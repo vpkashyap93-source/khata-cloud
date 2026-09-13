@@ -14,19 +14,52 @@ const monthStart = () => `${today().slice(0, 7)}-01`
 const money = (value) => Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const amt = (value) => Number(value || 0).toFixed(2)
 
-function ExportButton({ onClick }) {
+function ExportButton({ onExport, onPrint }) {
   return (
     <div className="export-row">
-      <button type="button" className="action-pill" onClick={onClick}><Icon name="download" size={13} />Export CSV</button>
+      {onExport && <button type="button" className="action-pill" onClick={onExport}><Icon name="download" size={13} />Export CSV</button>}
+      {onPrint && <button type="button" className="action-pill" onClick={onPrint}><Icon name="print" size={13} />Print / PDF</button>}
     </div>
   )
 }
 
-function TrialBalance({ accounts, entries }) {
+// A letterhead wrapper around a report's own already-rendered tables, reused
+// as-is from the on-screen view rather than redrawn - so print/PDF output
+// can never drift from what's shown on screen. window.print() opens the
+// browser's own print dialog, where "Save as PDF" is one of the built-in
+// destination options - no separate PDF library needed.
+function ReportPrintView({ org, title, subtitle, onClose, children }) {
+  return (
+    <div className="print-overlay">
+      <div className="print-toolbar no-print">
+        <button type="button" onClick={() => window.print()}>Print / Save as PDF</button>
+        <button type="button" className="link-button" onClick={onClose}>Close</button>
+      </div>
+      <div className="print-sheet report-print-sheet">
+        <div className="print-letterhead">
+          <div>
+            {org?.logoDataUrl && <img src={org.logoDataUrl} alt="Business logo" className="print-logo" />}
+            <h1>{org?.name || 'Your Business'}</h1>
+            {org?.gstin && <p>GSTIN: {org.gstin}</p>}
+            {org?.address && <p>{org.address}</p>}
+          </div>
+          <div className="print-doc-meta">
+            <h2>{title}</h2>
+            {subtitle && <p>{subtitle}</p>}
+          </div>
+        </div>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function TrialBalance({ accounts, entries, org }) {
   const rows = computeTrialBalance(accounts, entries)
   const totalDebit = rows.reduce((total, row) => total + row.debitTotal, 0)
   const totalCredit = rows.reduce((total, row) => total + row.creditTotal, 0)
   const balanced = Math.abs(totalDebit - totalCredit) < 0.01
+  const [showPrint, setShowPrint] = useState(false)
 
   const exportCsv = () => {
     downloadCsv(`trial-balance-${today()}.csv`, [
@@ -36,9 +69,8 @@ function TrialBalance({ accounts, entries }) {
     ])
   }
 
-  return (
+  const body = (
     <>
-      <ExportButton onClick={exportCsv} />
       <div className="report-summary">
         <div className="report-stat">
           <div className="report-stat-label">Total Debit</div>
@@ -75,12 +107,25 @@ function TrialBalance({ accounts, entries }) {
       </table>
     </>
   )
+
+  return (
+    <>
+      <ExportButton onExport={exportCsv} onPrint={() => setShowPrint(true)} />
+      {body}
+      {showPrint && (
+        <ReportPrintView org={org} title="Trial Balance" subtitle={`As of ${today()}`} onClose={() => setShowPrint(false)}>
+          {body}
+        </ReportPrintView>
+      )}
+    </>
+  )
 }
 
-function ProfitAndLoss({ accounts, entries }) {
+function ProfitAndLoss({ accounts, entries, org }) {
   const [from, setFrom] = useState(monthStart())
   const [to, setTo] = useState(today())
   const { income, expenses, totalIncome, totalExpense, netProfit } = computeProfitAndLoss(accounts, entries, from, to)
+  const [showPrint, setShowPrint] = useState(false)
 
   const exportCsv = () => {
     downloadCsv(`profit-and-loss-${from}-to-${to}.csv`, [
@@ -93,13 +138,8 @@ function ProfitAndLoss({ accounts, entries }) {
     ])
   }
 
-  return (
+  const body = (
     <>
-      <div className="journal-header-row">
-        <label>From <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
-        <label>To <input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
-      </div>
-      <ExportButton onClick={exportCsv} />
       <div className="report-summary">
         <div className="report-stat">
           <div className="report-stat-label">Total Income</div>
@@ -130,12 +170,29 @@ function ProfitAndLoss({ accounts, entries }) {
       </table>
     </>
   )
+
+  return (
+    <>
+      <div className="journal-header-row">
+        <label>From <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
+        <label>To <input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
+      </div>
+      <ExportButton onExport={exportCsv} onPrint={() => setShowPrint(true)} />
+      {body}
+      {showPrint && (
+        <ReportPrintView org={org} title="Profit & Loss" subtitle={`${from} to ${to}`} onClose={() => setShowPrint(false)}>
+          {body}
+        </ReportPrintView>
+      )}
+    </>
+  )
 }
 
-function BalanceSheet({ accounts, entries }) {
+function BalanceSheet({ accounts, entries, org }) {
   const [asOf, setAsOf] = useState(today())
   const { assets, liabilities, equity, netProfit, totalAssets, totalLiabilities, totalEquity } = computeBalanceSheet(accounts, entries, asOf)
   const balanced = Math.abs(totalAssets - (totalLiabilities + totalEquity)) < 0.01
+  const [showPrint, setShowPrint] = useState(false)
 
   const exportCsv = () => {
     downloadCsv(`balance-sheet-${asOf}.csv`, [
@@ -150,10 +207,8 @@ function BalanceSheet({ accounts, entries }) {
     ])
   }
 
-  return (
+  const body = (
     <>
-      <label>As of <input type="date" value={asOf} onChange={(event) => setAsOf(event.target.value)} /></label>
-      <ExportButton onClick={exportCsv} />
       <div className="report-summary">
         <div className="report-stat">
           <div className="report-stat-label">Total Assets</div>
@@ -188,14 +243,28 @@ function BalanceSheet({ accounts, entries }) {
       </table>
     </>
   )
+
+  return (
+    <>
+      <label>As of <input type="date" value={asOf} onChange={(event) => setAsOf(event.target.value)} /></label>
+      <ExportButton onExport={exportCsv} onPrint={() => setShowPrint(true)} />
+      {body}
+      {showPrint && (
+        <ReportPrintView org={org} title="Balance Sheet" subtitle={`As of ${asOf}`} onClose={() => setShowPrint(false)}>
+          {body}
+        </ReportPrintView>
+      )}
+    </>
+  )
 }
 
-function GstSummary({ invoices, bills, creditNotes, debitNotes, items }) {
+function GstSummary({ invoices, bills, creditNotes, debitNotes, items, org }) {
   const [from, setFrom] = useState(monthStart())
   const [to, setTo] = useState(today())
   const { sales, purchases, netPayable, totalPayable, invoiceCount, billCount } = computeGstSummary(invoices, bills, creditNotes, debitNotes, from, to)
   const salesByCode = hsnSummary(invoices, items, from, to)
   const purchasesByCode = hsnSummary(bills, items, from, to)
+  const [showPrint, setShowPrint] = useState(false)
 
   const exportCsv = () => {
     downloadCsv(`gst-summary-${from}-to-${to}.csv`, [
@@ -213,13 +282,8 @@ function GstSummary({ invoices, bills, creditNotes, debitNotes, items }) {
     ])
   }
 
-  return (
+  const body = (
     <>
-      <div className="journal-header-row">
-        <label>From <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
-        <label>To <input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
-      </div>
-      <ExportButton onClick={exportCsv} />
       <div className="report-summary">
         <div className="report-stat">
           <div className="report-stat-label">Sales (net of CN)</div>
@@ -308,6 +372,22 @@ function GstSummary({ invoices, bills, creditNotes, debitNotes, items }) {
       </table>
     </>
   )
+
+  return (
+    <>
+      <div className="journal-header-row">
+        <label>From <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
+        <label>To <input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
+      </div>
+      <ExportButton onExport={exportCsv} onPrint={() => setShowPrint(true)} />
+      {body}
+      {showPrint && (
+        <ReportPrintView org={org} title="GST Summary" subtitle={`${from} to ${to}`} onClose={() => setShowPrint(false)}>
+          {body}
+        </ReportPrintView>
+      )}
+    </>
+  )
 }
 
 // The GST portal's own "Returns Offline Tool" upload format - B2B, B2CL,
@@ -319,6 +399,7 @@ function GstSummary({ invoices, bills, creditNotes, debitNotes, items }) {
 function Gstr1Export({ invoices, creditNotes, customers, items, org }) {
   const [from, setFrom] = useState(monthStart())
   const [to, setTo] = useState(today())
+  const [showPrint, setShowPrint] = useState(false)
 
   const periodInvoices = invoices.filter((invoice) => !invoice.voided && invoice.date >= from && invoice.date <= to)
   const unmatchedCount = periodInvoices.filter(
@@ -378,6 +459,7 @@ function Gstr1Export({ invoices, creditNotes, customers, items, org }) {
       <div className="journal-header-row">
         <button type="button" className="action-pill" onClick={exportJson}><Icon name="download" size={13} />Download GSTR-1 JSON</button>
         <button type="button" className="action-pill" onClick={exportCsv}><Icon name="download" size={13} />Download readable CSV</button>
+        <button type="button" className="action-pill" onClick={() => setShowPrint(true)}><Icon name="print" size={13} />Print / PDF</button>
       </div>
       <div className="report-summary">
         <div className="report-stat">
@@ -397,6 +479,93 @@ function Gstr1Export({ invoices, creditNotes, customers, items, org }) {
           <div className="report-stat-value">{gstr1.hsn.data.length}</div>
         </div>
       </div>
+      {showPrint && (
+        <ReportPrintView org={org} title="GSTR-1 Export" subtitle={`${from} to ${to}`} onClose={() => setShowPrint(false)}>
+          <p className="report-section-title">B2B</p>
+          <table>
+            <thead><tr><th>GSTIN</th><th>Invoice No.</th><th>Date</th><th>POS</th><th className="amt">Rate %</th><th className="amt">Taxable</th><th className="amt">CGST</th><th className="amt">SGST</th><th className="amt">IGST</th></tr></thead>
+            <tbody>
+              {gstr1.b2b.flatMap((bucket) => bucket.inv.map((inv) => (
+                <tr key={inv.inum}>
+                  <td>{bucket.ctin}</td><td>{inv.inum}</td><td>{inv.idt}</td><td>{inv.pos}</td>
+                  <td className="amt">{amt(inv.itms[0].itm_det.rt)}</td>
+                  <td className="amt">{money(inv.itms[0].itm_det.txval)}</td>
+                  <td className="amt">{money(inv.itms[0].itm_det.camt)}</td>
+                  <td className="amt">{money(inv.itms[0].itm_det.samt)}</td>
+                  <td className="amt">{money(inv.itms[0].itm_det.iamt)}</td>
+                </tr>
+              )))}
+              {b2bInvoiceCount === 0 && <tr><td colSpan={9} className="empty-note">No B2B invoices in this period.</td></tr>}
+            </tbody>
+          </table>
+          <p className="report-section-title">B2CL</p>
+          <table>
+            <thead><tr><th>Invoice No.</th><th>Date</th><th>POS</th><th className="amt">Rate %</th><th className="amt">Taxable</th><th className="amt">IGST</th></tr></thead>
+            <tbody>
+              {gstr1.b2cl.map((inv) => (
+                <tr key={inv.inum}>
+                  <td>{inv.inum}</td><td>{inv.idt}</td><td>{inv.pos}</td>
+                  <td className="amt">{amt(inv.itms[0].itm_det.rt)}</td>
+                  <td className="amt">{money(inv.itms[0].itm_det.txval)}</td>
+                  <td className="amt">{money(inv.itms[0].itm_det.iamt)}</td>
+                </tr>
+              ))}
+              {gstr1.b2cl.length === 0 && <tr><td colSpan={6} className="empty-note">No B2C large invoices in this period.</td></tr>}
+            </tbody>
+          </table>
+          <p className="report-section-title">B2CS</p>
+          <table>
+            <thead><tr><th>POS</th><th>Type</th><th className="amt">Rate %</th><th className="amt">Taxable</th><th className="amt">CGST</th><th className="amt">SGST</th><th className="amt">IGST</th></tr></thead>
+            <tbody>
+              {gstr1.b2cs.map((row, index) => (
+                <tr key={index}>
+                  <td>{row.pos}</td><td>{row.sply_ty}</td>
+                  <td className="amt">{amt(row.rt)}</td>
+                  <td className="amt">{money(row.txval)}</td>
+                  <td className="amt">{money(row.camt)}</td>
+                  <td className="amt">{money(row.samt)}</td>
+                  <td className="amt">{money(row.iamt)}</td>
+                </tr>
+              ))}
+              {gstr1.b2cs.length === 0 && <tr><td colSpan={7} className="empty-note">No B2C supplies in this period.</td></tr>}
+            </tbody>
+          </table>
+          <p className="report-section-title">CDNR</p>
+          <table>
+            <thead><tr><th>GSTIN</th><th>Note No.</th><th>Date</th><th>POS</th><th className="amt">Taxable</th><th className="amt">CGST</th><th className="amt">SGST</th><th className="amt">IGST</th></tr></thead>
+            <tbody>
+              {gstr1.cdnr.flatMap((bucket) => bucket.nt.map((note) => (
+                <tr key={note.nt_num}>
+                  <td>{bucket.ctin}</td><td>{note.nt_num}</td><td>{note.nt_dt}</td><td>{note.pos}</td>
+                  <td className="amt">{money(note.itms[0].itm_det.txval)}</td>
+                  <td className="amt">{money(note.itms[0].itm_det.camt)}</td>
+                  <td className="amt">{money(note.itms[0].itm_det.samt)}</td>
+                  <td className="amt">{money(note.itms[0].itm_det.iamt)}</td>
+                </tr>
+              )))}
+              {gstr1.cdnr.length === 0 && <tr><td colSpan={8} className="empty-note">No credit notes against B2B customers in this period.</td></tr>}
+            </tbody>
+          </table>
+          <p className="report-section-title">HSN/SAC Summary</p>
+          <table>
+            <thead><tr><th>Code</th><th className="amt">Qty</th><th className="amt">Rate %</th><th className="amt">Taxable</th><th className="amt">CGST</th><th className="amt">SGST</th><th className="amt">IGST</th></tr></thead>
+            <tbody>
+              {gstr1.hsn.data.map((row) => (
+                <tr key={row.hsn_sc}>
+                  <td>{row.hsn_sc}</td>
+                  <td className="amt">{money(row.qty)}</td>
+                  <td className="amt">{amt(row.rt)}</td>
+                  <td className="amt">{money(row.txval)}</td>
+                  <td className="amt">{money(row.camt)}</td>
+                  <td className="amt">{money(row.samt)}</td>
+                  <td className="amt">{money(row.iamt)}</td>
+                </tr>
+              ))}
+              {gstr1.hsn.data.length === 0 && <tr><td colSpan={7} className="empty-note">No sales with line items in this period.</td></tr>}
+            </tbody>
+          </table>
+        </ReportPrintView>
+      )}
     </>
   )
 }
@@ -405,10 +574,11 @@ function Gstr1Export({ invoices, creditNotes, customers, items, org }) {
 // the GST portal (Returns Dashboard -> GSTR-2A/2B) - see buildPurchaseRegister
 // in src/lib/purchaseRegister.js for why that statement itself can't be
 // built from this app's own data, and what a mismatch usually means.
-function PurchaseRegister({ bills, debitNotes, vendors, items }) {
+function PurchaseRegister({ bills, debitNotes, vendors, items, org }) {
   const [from, setFrom] = useState(monthStart())
   const [to, setTo] = useState(today())
   const register = buildPurchaseRegister(bills, debitNotes, vendors, items, from, to)
+  const [showPrint, setShowPrint] = useState(false)
 
   const exportCsv = () => {
     const rows = [['Section', 'Vendor', 'GSTIN', 'Bill/Note No.', 'Date', 'Rate %', 'Taxable Value', 'CGST', 'SGST', 'IGST', 'Total']]
@@ -424,25 +594,8 @@ function PurchaseRegister({ bills, debitNotes, vendors, items }) {
 
   const totalTax = round2(register.totals.cgst + register.totals.sgst + register.totals.igst)
 
-  return (
+  const body = (
     <>
-      <div className="journal-header-row">
-        <label>From <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
-        <label>To <input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
-      </div>
-      <p className="section-sub">
-        This period&apos;s bills and debit notes, vendor-wise - for checking against the GSTR-2B you download from
-        the GST portal, not a replacement for it. A bill here missing from your 2B usually means that vendor
-        hasn&apos;t filed their GSTR-1 yet, or filed it differently - either way, that ITC isn&apos;t safe to claim
-        until it shows up there.
-      </p>
-      {register.unmatchedCount > 0 && (
-        <p className="form-error">
-          {register.unmatchedCount} bill{register.unmatchedCount === 1 ? '' : 's'} in this period {register.unmatchedCount === 1 ? "doesn't" : "don't"} match
-          a saved vendor, so no GSTIN could be filled in for {register.unmatchedCount === 1 ? 'it' : 'them'} - check Vendors.
-        </p>
-      )}
-      <ExportButton onClick={exportCsv} />
       <div className="report-summary">
         <div className="report-stat">
           <div className="report-stat-label">Taxable Value</div>
@@ -522,6 +675,34 @@ function PurchaseRegister({ bills, debitNotes, vendors, items }) {
       </table>
     </>
   )
+
+  return (
+    <>
+      <div className="journal-header-row">
+        <label>From <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
+        <label>To <input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
+      </div>
+      <p className="section-sub">
+        This period&apos;s bills and debit notes, vendor-wise - for checking against the GSTR-2B you download from
+        the GST portal, not a replacement for it. A bill here missing from your 2B usually means that vendor
+        hasn&apos;t filed their GSTR-1 yet, or filed it differently - either way, that ITC isn&apos;t safe to claim
+        until it shows up there.
+      </p>
+      {register.unmatchedCount > 0 && (
+        <p className="form-error">
+          {register.unmatchedCount} bill{register.unmatchedCount === 1 ? '' : 's'} in this period {register.unmatchedCount === 1 ? "doesn't" : "don't"} match
+          a saved vendor, so no GSTIN could be filled in for {register.unmatchedCount === 1 ? 'it' : 'them'} - check Vendors.
+        </p>
+      )}
+      <ExportButton onExport={exportCsv} onPrint={() => setShowPrint(true)} />
+      {body}
+      {showPrint && (
+        <ReportPrintView org={org} title="Purchase Register" subtitle={`${from} to ${to}`} onClose={() => setShowPrint(false)}>
+          {body}
+        </ReportPrintView>
+      )}
+    </>
+  )
 }
 
 const GSTR2B_TEMPLATE_HEADERS = ['GSTIN of supplier', 'Trade/Legal Name', 'Invoice Number', 'Invoice Date', 'Taxable Value', 'Integrated Tax', 'Central Tax', 'State/UT Tax']
@@ -532,12 +713,13 @@ const GSTR2B_TEMPLATE_HEADERS = ['GSTIN of supplier', 'Trade/Legal Name', 'Invoi
 // several from the portal's own Excel export) against this period's bills,
 // so the tedious row-by-row check against Purchase Register becomes a
 // glance at four buckets instead.
-function Gstr2bMatch({ bills, vendors }) {
+function Gstr2bMatch({ bills, vendors, org }) {
   const [from, setFrom] = useState(monthStart())
   const [to, setTo] = useState(today())
   const [result, setResult] = useState(null)
   const [fileError, setFileError] = useState('')
   const [fileName, setFileName] = useState('')
+  const [showPrint, setShowPrint] = useState(false)
 
   const handleFile = async (file) => {
     if (!file) return
@@ -595,97 +777,109 @@ function Gstr2bMatch({ bills, vendors }) {
       </div>
       {fileError && <p className="form-error">{fileError}</p>}
 
-      {result && (
-        <>
-          <p className="section-sub">Matched against <strong>{fileName}</strong>.</p>
-          {result.noGstinBills.length > 0 && (
-            <p className="form-error">
-              {result.noGstinBills.length} bill{result.noGstinBills.length === 1 ? '' : 's'} in this period {result.noGstinBills.length === 1 ? "couldn't" : "couldn't"} be matched
-              at all - {result.noGstinBills.length === 1 ? 'its' : 'their'} vendor has no saved GSTIN. Add it in Vendors and re-upload.
-            </p>
-          )}
-          <ExportButton onClick={exportCsv} />
-          <div className="report-summary">
-            <div className="report-stat">
-              <div className="report-stat-label">Matched</div>
-              <div className="report-stat-value green">{result.matched.length}</div>
+      {result && (() => {
+        const resultBody = (
+          <>
+            <div className="report-summary">
+              <div className="report-stat">
+                <div className="report-stat-label">Matched</div>
+                <div className="report-stat-value green">{result.matched.length}</div>
+              </div>
+              <div className="report-stat">
+                <div className="report-stat-label">Mismatched</div>
+                <div className={`report-stat-value ${result.mismatched.length > 0 ? 'red' : ''}`}>{result.mismatched.length}</div>
+              </div>
+              <div className="report-stat">
+                <div className="report-stat-label">Missing from 2B (ITC risk)</div>
+                <div className={`report-stat-value ${result.missingFromPortal.length > 0 ? 'red' : ''}`}>{result.missingFromPortal.length}</div>
+              </div>
+              <div className="report-stat">
+                <div className="report-stat-label">Missing from books</div>
+                <div className={`report-stat-value ${result.missingFromBooks.length > 0 ? 'red' : ''}`}>{result.missingFromBooks.length}</div>
+              </div>
             </div>
-            <div className="report-stat">
-              <div className="report-stat-label">Mismatched</div>
-              <div className={`report-stat-value ${result.mismatched.length > 0 ? 'red' : ''}`}>{result.mismatched.length}</div>
-            </div>
-            <div className="report-stat">
-              <div className="report-stat-label">Missing from 2B (ITC risk)</div>
-              <div className={`report-stat-value ${result.missingFromPortal.length > 0 ? 'red' : ''}`}>{result.missingFromPortal.length}</div>
-            </div>
-            <div className="report-stat">
-              <div className="report-stat-label">Missing from books</div>
-              <div className={`report-stat-value ${result.missingFromBooks.length > 0 ? 'red' : ''}`}>{result.missingFromBooks.length}</div>
-            </div>
-          </div>
 
-          {result.mismatched.length > 0 && (
-            <>
-              <p className="report-section-title">Mismatched - value differs from the portal</p>
-              <table>
-                <thead><tr><th>Vendor</th><th>Bill No.</th><th className="amt">Book Taxable</th><th className="amt">Portal Taxable</th><th className="amt">Book Tax</th><th className="amt">Portal Tax</th></tr></thead>
-                <tbody>
-                  {result.mismatched.map(({ bill, vendor, portalRow }) => (
-                    <tr key={bill.id}>
-                      <td>{vendor.name}</td>
-                      <td>{bill.number}</td>
-                      <td className="amt">{money(bill.taxable)}</td>
-                      <td className="amt">{money(portalRow.taxableValue)}</td>
-                      <td className="amt">{money(round2(bill.cgst + bill.sgst + bill.igst))}</td>
-                      <td className="amt">{money((Number(portalRow.cgst) || 0) + (Number(portalRow.sgst) || 0) + (Number(portalRow.igst) || 0))}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          )}
+            {result.mismatched.length > 0 && (
+              <>
+                <p className="report-section-title">Mismatched - value differs from the portal</p>
+                <table>
+                  <thead><tr><th>Vendor</th><th>Bill No.</th><th className="amt">Book Taxable</th><th className="amt">Portal Taxable</th><th className="amt">Book Tax</th><th className="amt">Portal Tax</th></tr></thead>
+                  <tbody>
+                    {result.mismatched.map(({ bill, vendor, portalRow }) => (
+                      <tr key={bill.id}>
+                        <td>{vendor.name}</td>
+                        <td>{bill.number}</td>
+                        <td className="amt">{money(bill.taxable)}</td>
+                        <td className="amt">{money(portalRow.taxableValue)}</td>
+                        <td className="amt">{money(round2(bill.cgst + bill.sgst + bill.igst))}</td>
+                        <td className="amt">{money((Number(portalRow.cgst) || 0) + (Number(portalRow.sgst) || 0) + (Number(portalRow.igst) || 0))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
 
-          {result.missingFromPortal.length > 0 && (
-            <>
-              <p className="report-section-title">In your books, not on the portal - ITC not safe to claim yet</p>
-              <table>
-                <thead><tr><th>Vendor</th><th>Bill No.</th><th>Date</th><th className="amt">Taxable</th><th className="amt">Tax</th></tr></thead>
-                <tbody>
-                  {result.missingFromPortal.map(({ bill, vendor }) => (
-                    <tr key={bill.id}>
-                      <td>{vendor.name}</td>
-                      <td>{bill.number}</td>
-                      <td>{bill.date}</td>
-                      <td className="amt">{money(bill.taxable)}</td>
-                      <td className="amt">{money(round2(bill.cgst + bill.sgst + bill.igst))}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          )}
+            {result.missingFromPortal.length > 0 && (
+              <>
+                <p className="report-section-title">In your books, not on the portal - ITC not safe to claim yet</p>
+                <table>
+                  <thead><tr><th>Vendor</th><th>Bill No.</th><th>Date</th><th className="amt">Taxable</th><th className="amt">Tax</th></tr></thead>
+                  <tbody>
+                    {result.missingFromPortal.map(({ bill, vendor }) => (
+                      <tr key={bill.id}>
+                        <td>{vendor.name}</td>
+                        <td>{bill.number}</td>
+                        <td>{bill.date}</td>
+                        <td className="amt">{money(bill.taxable)}</td>
+                        <td className="amt">{money(round2(bill.cgst + bill.sgst + bill.igst))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
 
-          {result.missingFromBooks.length > 0 && (
-            <>
-              <p className="report-section-title">On the portal, not in your books - a bill you may not have entered</p>
-              <table>
-                <thead><tr><th>Vendor</th><th>GSTIN</th><th>Invoice No.</th><th>Date</th><th className="amt">Taxable</th></tr></thead>
-                <tbody>
-                  {result.missingFromBooks.map((row, index) => (
-                    <tr key={`${row.gstin}-${row.invoiceNumber}-${index}`}>
-                      <td>{row.vendorName || '-'}</td>
-                      <td>{row.gstin}</td>
-                      <td>{row.invoiceNumber}</td>
-                      <td>{row.invoiceDate || '-'}</td>
-                      <td className="amt">{money(row.taxableValue)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          )}
-        </>
-      )}
+            {result.missingFromBooks.length > 0 && (
+              <>
+                <p className="report-section-title">On the portal, not in your books - a bill you may not have entered</p>
+                <table>
+                  <thead><tr><th>Vendor</th><th>GSTIN</th><th>Invoice No.</th><th>Date</th><th className="amt">Taxable</th></tr></thead>
+                  <tbody>
+                    {result.missingFromBooks.map((row, index) => (
+                      <tr key={`${row.gstin}-${row.invoiceNumber}-${index}`}>
+                        <td>{row.vendorName || '-'}</td>
+                        <td>{row.gstin}</td>
+                        <td>{row.invoiceNumber}</td>
+                        <td>{row.invoiceDate || '-'}</td>
+                        <td className="amt">{money(row.taxableValue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+          </>
+        )
+        return (
+          <>
+            <p className="section-sub">Matched against <strong>{fileName}</strong>.</p>
+            {result.noGstinBills.length > 0 && (
+              <p className="form-error">
+                {result.noGstinBills.length} bill{result.noGstinBills.length === 1 ? '' : 's'} in this period {result.noGstinBills.length === 1 ? "couldn't" : "couldn't"} be matched
+                at all - {result.noGstinBills.length === 1 ? 'its' : 'their'} vendor has no saved GSTIN. Add it in Vendors and re-upload.
+              </p>
+            )}
+            <ExportButton onExport={exportCsv} onPrint={() => setShowPrint(true)} />
+            {resultBody}
+            {showPrint && (
+              <ReportPrintView org={org} title="GSTR-2B Match" subtitle={`${from} to ${to}`} onClose={() => setShowPrint(false)}>
+                {resultBody}
+              </ReportPrintView>
+            )}
+          </>
+        )
+      })()}
     </>
   )
 }
@@ -697,11 +891,12 @@ function Gstr2bMatch({ bills, vendors }) {
 // the numbers across. See buildGstr3b in src/lib/gstr3b.js for exactly
 // what Table 4's "All other ITC" does and doesn't cover, and for the
 // IGST-first set-off order Table 6.1's cash-payable figures follow.
-function Gstr3bSummary({ invoices, bills, creditNotes, debitNotes, customers, items }) {
+function Gstr3bSummary({ invoices, bills, creditNotes, debitNotes, customers, items, org }) {
   const [from, setFrom] = useState(monthStart())
   const [to, setTo] = useState(today())
   const worksheet = buildGstr3b(invoices, bills, creditNotes, debitNotes, customers, items, from, to)
   const { outwardSupplies, interstateSupplies, itcAvailable, setOff } = worksheet
+  const [showPrint, setShowPrint] = useState(false)
 
   const totalCash = round2(setOff.cashIgst + setOff.cashCgst + setOff.cashSgst)
   const totalItcCarried = round2(setOff.itcCarriedForward.igst + setOff.itcCarriedForward.cgst + setOff.itcCarriedForward.sgst)
@@ -725,19 +920,8 @@ function Gstr3bSummary({ invoices, bills, creditNotes, debitNotes, customers, it
     ])
   }
 
-  return (
+  const body = (
     <>
-      <div className="journal-header-row">
-        <label>From <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
-        <label>To <input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
-      </div>
-      <p className="section-sub">
-        A worksheet to copy into the GSTR-3B form on the GST portal, not something you upload - 3B is filled in
-        directly there. Covers what this app tracks: outward supplies, interstate B2C by state, and ITC from bills
-        (as one "all other ITC" figure - imports, reverse charge, and ISD credit aren&apos;t tracked here). Check the
-        portal&apos;s own set-off calculation against Table 6.1 below before you pay.
-      </p>
-      <ExportButton onClick={exportCsv} />
       <div className="report-summary">
         <div className="report-stat">
           <div className="report-stat-label">Tax Payable</div>
@@ -825,18 +1009,41 @@ function Gstr3bSummary({ invoices, bills, creditNotes, debitNotes, customers, it
       </table>
     </>
   )
+
+  return (
+    <>
+      <div className="journal-header-row">
+        <label>From <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
+        <label>To <input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
+      </div>
+      <p className="section-sub">
+        A worksheet to copy into the GSTR-3B form on the GST portal, not something you upload - 3B is filled in
+        directly there. Covers what this app tracks: outward supplies, interstate B2C by state, and ITC from bills
+        (as one "all other ITC" figure - imports, reverse charge, and ISD credit aren&apos;t tracked here). Check the
+        portal&apos;s own set-off calculation against Table 6.1 below before you pay.
+      </p>
+      <ExportButton onExport={exportCsv} onPrint={() => setShowPrint(true)} />
+      {body}
+      {showPrint && (
+        <ReportPrintView org={org} title="GSTR-3B Summary" subtitle={`${from} to ${to}`} onClose={() => setShowPrint(false)}>
+          {body}
+        </ReportPrintView>
+      )}
+    </>
+  )
 }
 
 // GSTR-9, the annual return, in the same worksheet shape as GSTR-3B but
 // rolled up over the full financial year (1 April - 31 March) instead of
 // one period - see buildGstr9 in src/lib/gstr9.js for exactly what it
 // covers and leaves out.
-function Gstr9Annual({ invoices, bills, creditNotes, debitNotes, items }) {
+function Gstr9Annual({ invoices, bills, creditNotes, debitNotes, items, org }) {
   const defaultRange = financialYearRange()
   const [from, setFrom] = useState(defaultRange.from)
   const [to, setTo] = useState(defaultRange.to)
   const worksheet = buildGstr9(invoices, bills, creditNotes, debitNotes, items, from, to)
   const { outwardSupplies, itcAvailed, setOff, hsn, totalPayable, totalItc, totalCash } = worksheet
+  const [showPrint, setShowPrint] = useState(false)
 
   const exportCsv = () => {
     downloadCsv(`gstr9-annual-${from}-to-${to}.csv`, [
@@ -856,20 +1063,8 @@ function Gstr9Annual({ invoices, bills, creditNotes, debitNotes, items }) {
     ])
   }
 
-  return (
+  const body = (
     <>
-      <div className="journal-header-row">
-        <label>From <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
-        <label>To <input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
-      </div>
-      <p className="section-sub">
-        A once-a-year roll-up of the same figures GSTR-1 and GSTR-3B already report monthly, defaulted to the
-        current financial year ({defaultRange.label}) - change the dates for an earlier year. Filled in directly on
-        the portal like GSTR-3B, so copy this across rather than uploading it, and check it against the 12 months of
-        returns actually filed. Leaves out exports, advances, reverse charge, and amendments to prior-year figures
-        (Part V) - none of which this app tracks.
-      </p>
-      <ExportButton onClick={exportCsv} />
       <div className="report-summary">
         <div className="report-stat">
           <div className="report-stat-label">Tax Payable</div>
@@ -953,17 +1148,41 @@ function Gstr9Annual({ invoices, bills, creditNotes, debitNotes, items }) {
       </table>
     </>
   )
+
+  return (
+    <>
+      <div className="journal-header-row">
+        <label>From <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
+        <label>To <input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
+      </div>
+      <p className="section-sub">
+        A once-a-year roll-up of the same figures GSTR-1 and GSTR-3B already report monthly, defaulted to the
+        current financial year ({defaultRange.label}) - change the dates for an earlier year. Filled in directly on
+        the portal like GSTR-3B, so copy this across rather than uploading it, and check it against the 12 months of
+        returns actually filed. Leaves out exports, advances, reverse charge, and amendments to prior-year figures
+        (Part V) - none of which this app tracks.
+      </p>
+      <ExportButton onExport={exportCsv} onPrint={() => setShowPrint(true)} />
+      {body}
+      {showPrint && (
+        <ReportPrintView org={org} title="GSTR-9 Annual" subtitle={`${defaultRange.label} (${from} to ${to})`} onClose={() => setShowPrint(false)}>
+          {body}
+        </ReportPrintView>
+      )}
+    </>
+  )
 }
 
 // The core of GSTR-9C - turnover per books vs. turnover per GST returns -
 // see buildGstr9cCore in src/lib/gstr9c.js for why this covers only that
 // one comparison rather than the official form's full reconciliation.
-function Gstr9cReconciliation({ accounts, entries, invoices }) {
+function Gstr9cReconciliation({ accounts, entries, invoices, org }) {
   const defaultRange = financialYearRange()
   const [from, setFrom] = useState(defaultRange.from)
   const [to, setTo] = useState(defaultRange.to)
   const { booksTurnover, gstTurnover, difference } = buildGstr9cCore(accounts, entries, invoices, from, to)
   const matches = Math.abs(difference) < 1
+  const [showPrint, setShowPrint] = useState(false)
 
   const exportCsv = () => {
     downloadCsv(`gstr9c-reconciliation-${from}-to-${to}.csv`, [
@@ -973,21 +1192,8 @@ function Gstr9cReconciliation({ accounts, entries, invoices }) {
     ])
   }
 
-  return (
+  const body = (
     <>
-      <div className="journal-header-row">
-        <label>From <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
-        <label>To <input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
-      </div>
-      <p className="section-sub">
-        GSTR-9C&apos;s central check, not the full official form: turnover booked in Profit &amp; Loss for the year
-        against taxable sales reported through invoices for the same year. If this app is the only place the
-        business books its sales, the two should already match - a gap here is worth chasing down (a manual journal
-        entry posted straight to Sales Revenue without an invoice, for one) before it becomes a bigger one on the
-        actual 9C. The full form (turnover adjustments, ITC reconciliation, and certification) needs a CA and
-        audited financial statements this app doesn&apos;t have.
-      </p>
-      <ExportButton onClick={exportCsv} />
       <div className="report-summary">
         <div className="report-stat">
           <div className="report-stat-label">Turnover per Books</div>
@@ -1009,15 +1215,40 @@ function Gstr9cReconciliation({ accounts, entries, invoices }) {
       </p>
     </>
   )
+
+  return (
+    <>
+      <div className="journal-header-row">
+        <label>From <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
+        <label>To <input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
+      </div>
+      <p className="section-sub">
+        GSTR-9C&apos;s central check, not the full official form: turnover booked in Profit &amp; Loss for the year
+        against taxable sales reported through invoices for the same year. If this app is the only place the
+        business books its sales, the two should already match - a gap here is worth chasing down (a manual journal
+        entry posted straight to Sales Revenue without an invoice, for one) before it becomes a bigger one on the
+        actual 9C. The full form (turnover adjustments, ITC reconciliation, and certification) needs a CA and
+        audited financial statements this app doesn&apos;t have.
+      </p>
+      <ExportButton onExport={exportCsv} onPrint={() => setShowPrint(true)} />
+      {body}
+      {showPrint && (
+        <ReportPrintView org={org} title="GSTR-9C Reconciliation" subtitle={`${defaultRange.label} (${from} to ${to})`} onClose={() => setShowPrint(false)}>
+          {body}
+        </ReportPrintView>
+      )}
+    </>
+  )
 }
 
-function Aging({ invoices, bills }) {
+function Aging({ invoices, bills, org }) {
   const receivables = computeAging(invoices)
   const payables = computeAging(bills)
   const totalReceivable = round2(receivables.reduce((total, bucket) => total + bucket.total, 0))
   const totalPayable = round2(payables.reduce((total, bucket) => total + bucket.total, 0))
   const overdueReceivable = round2(receivables.filter((bucket) => bucket.label !== 'Current').reduce((total, bucket) => total + bucket.total, 0))
   const overduePayable = round2(payables.filter((bucket) => bucket.label !== 'Current').reduce((total, bucket) => total + bucket.total, 0))
+  const [showPrint, setShowPrint] = useState(false)
 
   const exportCsv = () => {
     downloadCsv(`aging-${today()}.csv`, [
@@ -1039,9 +1270,8 @@ function Aging({ invoices, bills }) {
     </table>
   )
 
-  return (
+  const body = (
     <>
-      <ExportButton onClick={exportCsv} />
       <div className="report-summary">
         <div className="report-stat">
           <div className="report-stat-label">Total Receivable</div>
@@ -1066,6 +1296,18 @@ function Aging({ invoices, bills }) {
       {bucketTable(payables, totalPayable)}
     </>
   )
+
+  return (
+    <>
+      <ExportButton onExport={exportCsv} onPrint={() => setShowPrint(true)} />
+      {body}
+      {showPrint && (
+        <ReportPrintView org={org} title="Aging" subtitle={`As of ${today()}`} onClose={() => setShowPrint(false)}>
+          {body}
+        </ReportPrintView>
+      )}
+    </>
+  )
 }
 
 export default function Reports({ accounts, entries, invoices, bills, creditNotes, debitNotes, items, customers, vendors, org }) {
@@ -1086,17 +1328,17 @@ export default function Reports({ accounts, entries, invoices, bills, creditNote
         <button className={tab === 'gstr9c' ? 'active' : ''} onClick={() => setTab('gstr9c')}>GSTR-9C Reconciliation</button>
         <button className={tab === 'aging' ? 'active' : ''} onClick={() => setTab('aging')}>Aging</button>
       </div>
-      {tab === 'trial' && <TrialBalance accounts={accounts} entries={entries} />}
-      {tab === 'pnl' && <ProfitAndLoss accounts={accounts} entries={entries} />}
-      {tab === 'bs' && <BalanceSheet accounts={accounts} entries={entries} />}
-      {tab === 'gst' && <GstSummary invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} items={items} />}
+      {tab === 'trial' && <TrialBalance accounts={accounts} entries={entries} org={org} />}
+      {tab === 'pnl' && <ProfitAndLoss accounts={accounts} entries={entries} org={org} />}
+      {tab === 'bs' && <BalanceSheet accounts={accounts} entries={entries} org={org} />}
+      {tab === 'gst' && <GstSummary invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} items={items} org={org} />}
       {tab === 'gstr1' && <Gstr1Export invoices={invoices} creditNotes={creditNotes} customers={customers} items={items} org={org} />}
-      {tab === 'purchaseRegister' && <PurchaseRegister bills={bills} debitNotes={debitNotes} vendors={vendors} items={items} />}
-      {tab === 'gstr2b' && <Gstr2bMatch bills={bills} vendors={vendors} />}
-      {tab === 'gstr3b' && <Gstr3bSummary invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} customers={customers} items={items} />}
-      {tab === 'gstr9' && <Gstr9Annual invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} items={items} />}
-      {tab === 'gstr9c' && <Gstr9cReconciliation accounts={accounts} entries={entries} invoices={invoices} />}
-      {tab === 'aging' && <Aging invoices={invoices} bills={bills} />}
+      {tab === 'purchaseRegister' && <PurchaseRegister bills={bills} debitNotes={debitNotes} vendors={vendors} items={items} org={org} />}
+      {tab === 'gstr2b' && <Gstr2bMatch bills={bills} vendors={vendors} org={org} />}
+      {tab === 'gstr3b' && <Gstr3bSummary invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} customers={customers} items={items} org={org} />}
+      {tab === 'gstr9' && <Gstr9Annual invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} items={items} org={org} />}
+      {tab === 'gstr9c' && <Gstr9cReconciliation accounts={accounts} entries={entries} invoices={invoices} org={org} />}
+      {tab === 'aging' && <Aging invoices={invoices} bills={bills} org={org} />}
     </div>
   )
 }

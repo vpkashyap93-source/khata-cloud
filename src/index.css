@@ -378,7 +378,17 @@ tfoot td { font-weight: 700; border-top: 2px solid var(--ink); border-bottom: no
 .print-toolbar { position: sticky; top: 0; display: flex; justify-content: flex-end; gap: 10px; width: 100%; max-width: 720px; margin: 0 auto 10px; }
 .print-toolbar button[type="button"]:first-child { background: var(--accent-grad); color: #fff; border: none; border-radius: 7px; padding: 8px 16px; font-weight: 600; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
 .print-toolbar .link-button { background: #fff; border-radius: 7px; padding: 8px 14px; }
-.print-sheet { background: #fff; color: #1b2333; width: 100%; max-width: 720px; padding: 40px; border-radius: var(--radius-md); position: relative; box-shadow: var(--shadow-lg); }
+.print-sheet {
+  background: #fff; color: #1b2333; width: 100%; max-width: 720px; padding: 40px; border-radius: var(--radius-md);
+  position: relative; box-shadow: var(--shadow-lg);
+  /* Tables inside reuse the app's own th/td styling, which reads its colors
+     from theme variables - fix those to light-mode values here so a report
+     printed from dark mode doesn't get a dark table header floating in an
+     otherwise white sheet. */
+  --border: #ddd; --muted: #666; --th-bg: #f5f6f8; --row-hover-bg: transparent; --bg: #f5f6f8;
+}
+.report-print-sheet { max-width: 960px; }
+.report-print-sheet table { font-size: 0.85rem; }
 .print-watermark {
   position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%) rotate(-20deg);
   font-size: 5rem; font-weight: 800; color: rgba(220, 38, 38, 0.18); letter-spacing: 0.1em;
