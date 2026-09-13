@@ -515,3 +515,32 @@ export const computeGstSummary = (invoices, bills, creditNotes, debitNotes, from
     billCount: periodBills.length,
   }
 }
+
+// Groups a period's invoice/bill line items by their catalog item's own
+// HSN (goods) or SAC (services) code - the breakdown a GSTR-1 filing
+// actually asks for, not just one combined total. Each document posts a
+// single GST rate across all its lines, so a line's own tax portion is
+// computed directly from it (calcGst on the line's own taxable amount) -
+// no proration needed. A line with no catalog item (typed in freehand) or
+// whose item has no code falls under "Not specified" rather than being
+// dropped. Credit/debit notes aren't broken out here (they carry no line
+// items of their own) - this is a by-code view of the gross invoices/
+// bills, a supplement to computeGstSummary's already-netted total.
+export const hsnSummary = (docs, items, from, to) => {
+  const byCode = new Map()
+  inRange(docs, from, to).forEach((doc) => {
+    (doc.items || []).forEach((line) => {
+      const taxable = round2((Number(line.qty) || 0) * (Number(line.rate) || 0))
+      if (taxable <= 0) return
+      const code = items.find((item) => item.id === line.itemId)?.hsnSac || 'Not specified'
+      const gst = calcGst(taxable, doc.gstPercent, doc.interState)
+      const existing = byCode.get(code) || { code, taxable: 0, cgst: 0, sgst: 0, igst: 0 }
+      existing.taxable = round2(existing.taxable + taxable)
+      existing.cgst = round2(existing.cgst + gst.cgst)
+      existing.sgst = round2(existing.sgst + gst.sgst)
+      existing.igst = round2(existing.igst + gst.igst)
+      byCode.set(code, existing)
+    })
+  })
+  return [...byCode.values()].sort((a, b) => a.code.localeCompare(b.code))
+}

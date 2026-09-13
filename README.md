@@ -166,6 +166,12 @@ Balance Sheet reports - all backed by Firebase, in real time.
   and listed on the Dashboard (`lowStockItems` in `src/lib/accounting.js`).
   Leaving the reorder level at 0 (the default) opts an item out, so nothing
   is flagged just for reaching zero stock unless you asked for that alert.
+- **HSN/SAC-wise GST breakdown**: the GST Summary report has two extra
+  tables - Sales and Purchases each broken down by their line items' own
+  HSN/SAC code (`hsnSummary` in `src/lib/accounting.js`, included in the CSV
+  export too) - the shape a GSTR-1 filing actually asks for, not just one
+  combined total. A line with no catalog item, or whose item has no code,
+  groups under "Not specified" rather than being dropped.
 
 ## Run locally
 

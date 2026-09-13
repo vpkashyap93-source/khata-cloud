@@ -289,7 +289,7 @@ export default function App() {
           {tab === 'ledger' && <Ledger accounts={accounts} entries={entries} />}
           {tab === 'reconciliation' && <Reconciliation orgId={org.id} accounts={accounts} entries={entries} reconciledEntries={reconciledEntries} />}
           {tab === 'transfer' && <TransferFunds orgId={org.id} accounts={accounts} entries={entries} />}
-          {tab === 'reports' && <Reports accounts={accounts} entries={entries} invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} />}
+          {tab === 'reports' && <Reports accounts={accounts} entries={entries} invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} items={items} />}
           {tab === 'settings' && <Settings orgId={org.id} org={org} members={members} />}
         </main>
       </div>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { computeTrialBalance, computeProfitAndLoss, computeBalanceSheet, computeGstSummary, computeAging, round2 } from '../lib/accounting.js'
+import { computeTrialBalance, computeProfitAndLoss, computeBalanceSheet, computeGstSummary, computeAging, hsnSummary, round2 } from '../lib/accounting.js'
 import { downloadCsv } from '../lib/csv.js'
 import Icon from './icons.jsx'
 
@@ -184,10 +184,12 @@ function BalanceSheet({ accounts, entries }) {
   )
 }
 
-function GstSummary({ invoices, bills, creditNotes, debitNotes }) {
+function GstSummary({ invoices, bills, creditNotes, debitNotes, items }) {
   const [from, setFrom] = useState(monthStart())
   const [to, setTo] = useState(today())
   const { sales, purchases, netPayable, totalPayable, invoiceCount, billCount } = computeGstSummary(invoices, bills, creditNotes, debitNotes, from, to)
+  const salesByCode = hsnSummary(invoices, items, from, to)
+  const purchasesByCode = hsnSummary(bills, items, from, to)
 
   const exportCsv = () => {
     downloadCsv(`gst-summary-${from}-to-${to}.csv`, [
@@ -196,6 +198,12 @@ function GstSummary({ invoices, bills, creditNotes, debitNotes }) {
       ['Input tax credit - Purchases', amt(purchases.taxable), amt(purchases.cgst), amt(purchases.sgst), amt(purchases.igst)],
       ['Net GST payable', '', amt(netPayable.cgst), amt(netPayable.sgst), amt(netPayable.igst)],
       [totalPayable >= 0 ? 'Total Payable' : 'Credit Carried Forward', amt(Math.abs(totalPayable)), '', '', ''],
+      [],
+      ['HSN/SAC - Sales', 'Taxable Value', 'CGST', 'SGST', 'IGST'],
+      ...salesByCode.map((row) => [row.code, amt(row.taxable), amt(row.cgst), amt(row.sgst), amt(row.igst)]),
+      [],
+      ['HSN/SAC - Purchases', 'Taxable Value', 'CGST', 'SGST', 'IGST'],
+      ...purchasesByCode.map((row) => [row.code, amt(row.taxable), amt(row.cgst), amt(row.sgst), amt(row.igst)]),
     ])
   }
 
@@ -256,6 +264,40 @@ function GstSummary({ invoices, bills, creditNotes, debitNotes }) {
             <td className="amt">{money(netPayable.sgst)}</td>
             <td className="amt">{money(netPayable.igst)}</td>
           </tr>
+        </tbody>
+      </table>
+
+      <p className="report-section-title">Sales by HSN/SAC</p>
+      <table>
+        <thead><tr><th>Code</th><th className="amt">Taxable value</th><th className="amt">CGST</th><th className="amt">SGST</th><th className="amt">IGST</th></tr></thead>
+        <tbody>
+          {salesByCode.map((row) => (
+            <tr key={row.code}>
+              <td>{row.code}</td>
+              <td className="amt">{money(row.taxable)}</td>
+              <td className="amt">{money(row.cgst)}</td>
+              <td className="amt">{money(row.sgst)}</td>
+              <td className="amt">{money(row.igst)}</td>
+            </tr>
+          ))}
+          {salesByCode.length === 0 && <tr><td colSpan={5} className="empty-note">No sales with line items in this period.</td></tr>}
+        </tbody>
+      </table>
+
+      <p className="report-section-title">Purchases by HSN/SAC</p>
+      <table>
+        <thead><tr><th>Code</th><th className="amt">Taxable value</th><th className="amt">CGST</th><th className="amt">SGST</th><th className="amt">IGST</th></tr></thead>
+        <tbody>
+          {purchasesByCode.map((row) => (
+            <tr key={row.code}>
+              <td>{row.code}</td>
+              <td className="amt">{money(row.taxable)}</td>
+              <td className="amt">{money(row.cgst)}</td>
+              <td className="amt">{money(row.sgst)}</td>
+              <td className="amt">{money(row.igst)}</td>
+            </tr>
+          ))}
+          {purchasesByCode.length === 0 && <tr><td colSpan={5} className="empty-note">No purchases with line items in this period.</td></tr>}
         </tbody>
       </table>
     </>
@@ -319,7 +361,7 @@ function Aging({ invoices, bills }) {
   )
 }
 
-export default function Reports({ accounts, entries, invoices, bills, creditNotes, debitNotes }) {
+export default function Reports({ accounts, entries, invoices, bills, creditNotes, debitNotes, items }) {
   const [tab, setTab] = useState('trial')
   return (
     <div className="panel">
@@ -334,7 +376,7 @@ export default function Reports({ accounts, entries, invoices, bills, creditNote
       {tab === 'trial' && <TrialBalance accounts={accounts} entries={entries} />}
       {tab === 'pnl' && <ProfitAndLoss accounts={accounts} entries={entries} />}
       {tab === 'bs' && <BalanceSheet accounts={accounts} entries={entries} />}
-      {tab === 'gst' && <GstSummary invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} />}
+      {tab === 'gst' && <GstSummary invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} items={items} />}
       {tab === 'aging' && <Aging invoices={invoices} bills={bills} />}
     </div>
   )
