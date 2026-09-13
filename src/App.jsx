@@ -5,6 +5,7 @@ import Login from './components/Login.jsx'
 import Dashboard from './components/Dashboard.jsx'
 import ChartOfAccounts from './components/ChartOfAccounts.jsx'
 import JournalEntries from './components/JournalEntries.jsx'
+import QuickEntry from './components/QuickEntry.jsx'
 import { Invoices, Bills } from './components/Invoicing.jsx'
 import Estimates from './components/Estimates.jsx'
 import PurchaseOrders from './components/PurchaseOrders.jsx'
@@ -27,6 +28,7 @@ const NAV = [
   { id: 'accounts', label: 'Chart of Accounts', icon: 'accounts' },
   { id: 'openingBalances', label: 'Opening Balances', icon: 'asset' },
   { id: 'journal', label: 'Journal', icon: 'journal' },
+  { id: 'quickEntry', label: 'Quick Entry', icon: 'payment' },
   { id: 'estimates', label: 'Estimates', icon: 'estimates' },
   { id: 'invoices', label: 'Sales Invoices', icon: 'invoices' },
   { id: 'purchaseOrders', label: 'Purchase Orders', icon: 'bills' },
@@ -283,6 +285,7 @@ export default function App() {
           {tab === 'accounts' && <ChartOfAccounts orgId={org.id} accounts={accounts} />}
           {tab === 'openingBalances' && <OpeningBalances orgId={org.id} accounts={accounts} customers={customers} vendors={vendors} invoices={invoices} bills={bills} />}
           {tab === 'journal' && <JournalEntries orgId={org.id} accounts={accounts} entries={entries} />}
+          {tab === 'quickEntry' && <QuickEntry orgId={org.id} accounts={accounts} entries={entries} />}
           {tab === 'estimates' && <Estimates orgId={org.id} accounts={accounts} estimates={estimates} invoices={invoices} customers={customers} items={items} org={org} />}
           {tab === 'purchaseOrders' && <PurchaseOrders orgId={org.id} accounts={accounts} purchaseOrders={purchaseOrders} bills={bills} vendors={vendors} items={items} org={org} />}
           {tab === 'deliveryChallan' && <DeliveryChallan orgId={org.id} challans={deliveryChallans} customers={customers} items={items} org={org} />}

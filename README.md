@@ -288,6 +288,16 @@ Balance Sheet reports - all backed by Firebase, in real time.
   regardless of the app's current theme, so a report printed from dark
   mode doesn't come out with an unreadable dark table header on an
   otherwise white page.
+- **Quick Entry**: a fast bulk-entry grid for simple cash/bank vouchers
+  (`src/components/QuickEntry.jsx`) - pick a direction (Receipt/Payment)
+  and a bank/cash account once, then add as many dated rows (date,
+  account, party name, narration, amount) as needed and post them all in
+  one save. Each row becomes its own two-line journal entry - the bank/
+  cash account on one side, the row's own account on the other - posted
+  with source `manual`, so these show up in, and can be voided from, the
+  regular Journal Voucher register and share its JV-#### numbering. For
+  anything with GST, Sales Invoices/Purchase Bills are still the right
+  screen - this posts straight to the ledger with no tax calculated.
 
 ## Run locally
 
