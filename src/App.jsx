@@ -14,12 +14,14 @@ import Items from './components/Items.jsx'
 import Settings from './components/Settings.jsx'
 import Ledger from './components/Ledger.jsx'
 import Reports from './components/Reports.jsx'
+import OpeningBalances from './components/OpeningBalances.jsx'
 import Icon from './components/icons.jsx'
 import CommandPalette from './components/CommandPalette.jsx'
 
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
   { id: 'accounts', label: 'Chart of Accounts', icon: 'accounts' },
+  { id: 'openingBalances', label: 'Opening Balances', icon: 'asset' },
   { id: 'journal', label: 'Journal', icon: 'journal' },
   { id: 'estimates', label: 'Estimates', icon: 'estimates' },
   { id: 'invoices', label: 'Sales Invoices', icon: 'invoices' },
@@ -267,6 +269,7 @@ export default function App() {
         <main className="app-main">
           {tab === 'dashboard' && <Dashboard accounts={accounts} entries={entries} invoices={invoices} bills={bills} />}
           {tab === 'accounts' && <ChartOfAccounts orgId={org.id} accounts={accounts} />}
+          {tab === 'openingBalances' && <OpeningBalances orgId={org.id} accounts={accounts} customers={customers} vendors={vendors} invoices={invoices} bills={bills} />}
           {tab === 'journal' && <JournalEntries orgId={org.id} accounts={accounts} entries={entries} />}
           {tab === 'estimates' && <Estimates orgId={org.id} accounts={accounts} estimates={estimates} invoices={invoices} customers={customers} items={items} org={org} />}
           {tab === 'invoices' && <Invoices orgId={org.id} accounts={accounts} invoices={invoices} customers={customers} items={items} creditNotes={creditNotes} entries={entries} org={org} />}

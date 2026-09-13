@@ -122,6 +122,16 @@ Balance Sheet reports - all backed by Firebase, in real time.
   someone@example.com" on Journal entries, Invoices/Bills, and Recurring
   templates - useful now that a business can have more than one person on
   its books (see Team, above).
+- **Opening balances**: a business switching to Khata Cloud isn't starting
+  at zero - Opening Balances (`src/components/OpeningBalances.jsx`) brings
+  in account balances, what customers already owe, and what's already owed
+  to vendors, as of a chosen date. Never a raw overwrite: account balances
+  post as one balanced journal entry against a found-or-created "Opening
+  Balance Equity" account (`buildOpeningBalanceLines` in
+  `src/lib/accounting.js`); customer/vendor balances post as real
+  `OB`-numbered invoices/bills, so they show up in that party's own history
+  and count correctly toward Aging and Dashboard's upcoming dues, not just
+  as one lump sum. Safe to use more than once (e.g. one party at a time).
 
 ## Run locally
 

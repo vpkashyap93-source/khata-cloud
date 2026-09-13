@@ -25,6 +25,7 @@ export const DEFAULT_ACCOUNTS = [
   { code: '2002', name: 'GST Payable', type: 'liability', system: true },
   { code: '3001', name: "Owner's Capital", type: 'equity', system: true },
   { code: '3002', name: 'Retained Earnings', type: 'equity', system: true },
+  { code: '3900', name: 'Opening Balance Equity', type: 'equity', system: true },
   { code: '4001', name: 'Sales Revenue', type: 'income', system: true },
   { code: '5001', name: 'Purchases', type: 'expense', system: true },
   { code: '5002', name: 'General Expenses', type: 'expense', system: true },
@@ -128,6 +129,34 @@ export const buildDebitNoteJournalLines = (accounts, { taxable, cgst, sgst, igst
   lines.push({ accountId: purchasesId, debit: 0, credit: taxable })
   const tax = round2(cgst + sgst + igst)
   if (tax > 0) lines.push({ accountId: gstInputId, debit: 0, credit: tax })
+  return lines
+}
+
+// Bringing an already-running business onto Khata Cloud means its accounts
+// don't start at zero - each one gets seeded with its real starting
+// balance, on its own normal side (isDebitNormal), and the whole entry
+// balances against Opening Balance Equity, the "plug" account every
+// accounting system uses for exactly this. balances is [{ accountId,
+// amount }] for ordinary accounts (Cash, Bank, etc - never Accounts
+// Receivable/Payable, which get seeded per-party via opening invoices/
+// bills instead, so per-customer and per-vendor balances are traceable).
+export const buildOpeningBalanceLines = (accounts, balances, openingEquityId) => {
+  const lines = []
+  let netDebit = 0
+  balances.forEach(({ accountId, amount }) => {
+    const account = accounts.find((item) => item.id === accountId)
+    const value = round2(amount)
+    if (!account || value <= 0) return
+    if (isDebitNormal(account.type)) {
+      lines.push({ accountId, debit: value, credit: 0 })
+      netDebit += value
+    } else {
+      lines.push({ accountId, debit: 0, credit: value })
+      netDebit -= value
+    }
+  })
+  if (netDebit > 0) lines.push({ accountId: openingEquityId, debit: 0, credit: round2(netDebit) })
+  else if (netDebit < 0) lines.push({ accountId: openingEquityId, debit: round2(-netDebit), credit: 0 })
   return lines
 }
 
