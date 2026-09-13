@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { computeTrialBalance, computeProfitAndLoss, computeBalanceSheet, computeGstSummary, computeAging, hsnSummary, round2 } from '../lib/accounting.js'
 import { downloadCsv, downloadJson } from '../lib/csv.js'
 import { buildGstr1 } from '../lib/gstr1.js'
+import { buildPurchaseRegister } from '../lib/purchaseRegister.js'
 import Icon from './icons.jsx'
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -396,6 +397,129 @@ function Gstr1Export({ invoices, creditNotes, customers, items, org }) {
   )
 }
 
+// A register to check line by line against the GSTR-2B you download from
+// the GST portal (Returns Dashboard -> GSTR-2A/2B) - see buildPurchaseRegister
+// in src/lib/purchaseRegister.js for why that statement itself can't be
+// built from this app's own data, and what a mismatch usually means.
+function PurchaseRegister({ bills, debitNotes, vendors, items }) {
+  const [from, setFrom] = useState(monthStart())
+  const [to, setTo] = useState(today())
+  const register = buildPurchaseRegister(bills, debitNotes, vendors, items, from, to)
+
+  const exportCsv = () => {
+    const rows = [['Section', 'Vendor', 'GSTIN', 'Bill/Note No.', 'Date', 'Rate %', 'Taxable Value', 'CGST', 'SGST', 'IGST', 'Total']]
+    register.bills.forEach((row) => rows.push(['Bill', row.vendorName, row.vendorGstin, row.number, row.date, amt(row.rate), amt(row.taxable), amt(row.cgst), amt(row.sgst), amt(row.igst), amt(row.total)]))
+    register.debitNotes.forEach((row) => rows.push(['Debit Note', row.vendorName, row.vendorGstin, row.number, row.date, '', amt(row.taxable), amt(row.cgst), amt(row.sgst), amt(row.igst), amt(row.total)]))
+    rows.push([])
+    rows.push(['Totals', '', '', '', '', '', amt(register.totals.taxable), amt(register.totals.cgst), amt(register.totals.sgst), amt(register.totals.igst), amt(register.totals.total)])
+    rows.push([])
+    rows.push(['HSN/SAC Summary', 'Qty', 'Taxable Value', 'CGST', 'SGST', 'IGST'])
+    register.hsn.forEach((row) => rows.push([row.code, amt(row.qty), amt(row.taxable), amt(row.cgst), amt(row.sgst), amt(row.igst)]))
+    downloadCsv(`purchase-register-${from}-to-${to}.csv`, rows)
+  }
+
+  const totalTax = round2(register.totals.cgst + register.totals.sgst + register.totals.igst)
+
+  return (
+    <>
+      <div className="journal-header-row">
+        <label>From <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
+        <label>To <input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
+      </div>
+      <p className="section-sub">
+        This period&apos;s bills and debit notes, vendor-wise - for checking against the GSTR-2B you download from
+        the GST portal, not a replacement for it. A bill here missing from your 2B usually means that vendor
+        hasn&apos;t filed their GSTR-1 yet, or filed it differently - either way, that ITC isn&apos;t safe to claim
+        until it shows up there.
+      </p>
+      {register.unmatchedCount > 0 && (
+        <p className="form-error">
+          {register.unmatchedCount} bill{register.unmatchedCount === 1 ? '' : 's'} in this period {register.unmatchedCount === 1 ? "doesn't" : "don't"} match
+          a saved vendor, so no GSTIN could be filled in for {register.unmatchedCount === 1 ? 'it' : 'them'} - check Vendors.
+        </p>
+      )}
+      <ExportButton onClick={exportCsv} />
+      <div className="report-summary">
+        <div className="report-stat">
+          <div className="report-stat-label">Taxable Value</div>
+          <div className="report-stat-value">{money(register.totals.taxable)}</div>
+        </div>
+        <div className="report-stat">
+          <div className="report-stat-label">Total ITC (CGST+SGST+IGST)</div>
+          <div className="report-stat-value">{money(totalTax)}</div>
+        </div>
+        <div className="report-stat">
+          <div className="report-stat-label">Bills</div>
+          <div className="report-stat-value">{register.bills.length}</div>
+        </div>
+      </div>
+
+      <p className="report-section-title">Bills</p>
+      <table>
+        <thead><tr><th>Vendor</th><th>GSTIN</th><th>No.</th><th>Date</th><th className="amt">Taxable</th><th className="amt">CGST</th><th className="amt">SGST</th><th className="amt">IGST</th><th className="amt">Total</th></tr></thead>
+        <tbody>
+          {register.bills.map((row) => (
+            <tr key={row.number}>
+              <td>{row.vendorName}</td>
+              <td>{row.vendorGstin || '-'}</td>
+              <td>{row.number}</td>
+              <td>{row.date}</td>
+              <td className="amt">{money(row.taxable)}</td>
+              <td className="amt">{money(row.cgst)}</td>
+              <td className="amt">{money(row.sgst)}</td>
+              <td className="amt">{money(row.igst)}</td>
+              <td className="amt">{money(row.total)}</td>
+            </tr>
+          ))}
+          {register.bills.length === 0 && <tr><td colSpan={9} className="empty-note">No bills in this period.</td></tr>}
+        </tbody>
+      </table>
+
+      {register.debitNotes.length > 0 && (
+        <>
+          <p className="report-section-title">Debit Notes (purchase returns)</p>
+          <table>
+            <thead><tr><th>Vendor</th><th>GSTIN</th><th>No.</th><th>Date</th><th className="amt">Taxable</th><th className="amt">CGST</th><th className="amt">SGST</th><th className="amt">IGST</th><th className="amt">Total</th></tr></thead>
+            <tbody>
+              {register.debitNotes.map((row) => (
+                <tr key={row.number}>
+                  <td>{row.vendorName}</td>
+                  <td>{row.vendorGstin || '-'}</td>
+                  <td>{row.number}</td>
+                  <td>{row.date}</td>
+                  <td className="amt">{money(row.taxable)}</td>
+                  <td className="amt">{money(row.cgst)}</td>
+                  <td className="amt">{money(row.sgst)}</td>
+                  <td className="amt">{money(row.igst)}</td>
+                  <td className="amt">{money(row.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+
+      <p className="report-section-title">Purchases by HSN/SAC</p>
+      <table>
+        <thead><tr><th>Code</th><th className="amt">Qty</th><th className="amt">Taxable value</th><th className="amt">CGST</th><th className="amt">SGST</th><th className="amt">IGST</th></tr></thead>
+        <tbody>
+          {register.hsn.map((row) => (
+            <tr key={row.code}>
+              <td>{row.code}</td>
+              <td className="amt">{money(row.qty)}</td>
+              <td className="amt">{money(row.taxable)}</td>
+              <td className="amt">{money(row.cgst)}</td>
+              <td className="amt">{money(row.sgst)}</td>
+              <td className="amt">{money(row.igst)}</td>
+            </tr>
+          ))}
+          {register.hsn.length === 0 && <tr><td colSpan={6} className="empty-note">No bills with line items in this period.</td></tr>}
+        </tbody>
+      </table>
+    </>
+  )
+}
+
 function Aging({ invoices, bills }) {
   const receivables = computeAging(invoices)
   const payables = computeAging(bills)
@@ -453,7 +577,7 @@ function Aging({ invoices, bills }) {
   )
 }
 
-export default function Reports({ accounts, entries, invoices, bills, creditNotes, debitNotes, items, customers, org }) {
+export default function Reports({ accounts, entries, invoices, bills, creditNotes, debitNotes, items, customers, vendors, org }) {
   const [tab, setTab] = useState('trial')
   return (
     <div className="panel">
@@ -464,6 +588,7 @@ export default function Reports({ accounts, entries, invoices, bills, creditNote
         <button className={tab === 'bs' ? 'active' : ''} onClick={() => setTab('bs')}>Balance Sheet</button>
         <button className={tab === 'gst' ? 'active' : ''} onClick={() => setTab('gst')}>GST Summary</button>
         <button className={tab === 'gstr1' ? 'active' : ''} onClick={() => setTab('gstr1')}>GSTR-1 Export</button>
+        <button className={tab === 'purchaseRegister' ? 'active' : ''} onClick={() => setTab('purchaseRegister')}>Purchase Register</button>
         <button className={tab === 'aging' ? 'active' : ''} onClick={() => setTab('aging')}>Aging</button>
       </div>
       {tab === 'trial' && <TrialBalance accounts={accounts} entries={entries} />}
@@ -471,6 +596,7 @@ export default function Reports({ accounts, entries, invoices, bills, creditNote
       {tab === 'bs' && <BalanceSheet accounts={accounts} entries={entries} />}
       {tab === 'gst' && <GstSummary invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} items={items} />}
       {tab === 'gstr1' && <Gstr1Export invoices={invoices} creditNotes={creditNotes} customers={customers} items={items} org={org} />}
+      {tab === 'purchaseRegister' && <PurchaseRegister bills={bills} debitNotes={debitNotes} vendors={vendors} items={items} />}
       {tab === 'aging' && <Aging invoices={invoices} bills={bills} />}
     </div>
   )
