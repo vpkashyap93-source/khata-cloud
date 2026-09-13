@@ -17,6 +17,7 @@ import Settings from './components/Settings.jsx'
 import Ledger from './components/Ledger.jsx'
 import Reports from './components/Reports.jsx'
 import Statements from './components/Statements.jsx'
+import DeliveryChallan from './components/DeliveryChallan.jsx'
 import OpeningBalances from './components/OpeningBalances.jsx'
 import Icon from './components/icons.jsx'
 import CommandPalette from './components/CommandPalette.jsx'
@@ -29,6 +30,7 @@ const NAV = [
   { id: 'estimates', label: 'Estimates', icon: 'estimates' },
   { id: 'invoices', label: 'Sales Invoices', icon: 'invoices' },
   { id: 'purchaseOrders', label: 'Purchase Orders', icon: 'bills' },
+  { id: 'deliveryChallan', label: 'Delivery Challan', icon: 'invoices' },
   { id: 'bills', label: 'Purchase Bills', icon: 'bills' },
   { id: 'recurring', label: 'Recurring Invoices', icon: 'repeat' },
   { id: 'recurringBills', label: 'Recurring Bills', icon: 'repeat' },
@@ -58,6 +60,7 @@ export default function App() {
   const [stockMovements, setStockMovements] = useState([])
   const [estimates, setEstimates] = useState([])
   const [purchaseOrders, setPurchaseOrders] = useState([])
+  const [deliveryChallans, setDeliveryChallans] = useState([])
   const [recurringTemplates, setRecurringTemplates] = useState([])
   const [reconciledEntries, setReconciledEntries] = useState([])
   const [members, setMembers] = useState([])
@@ -146,6 +149,7 @@ export default function App() {
       watchOrgCollection(org.id, 'stockMovements', setStockMovements, 'date'),
       watchOrgCollection(org.id, 'estimates', setEstimates, 'date'),
       watchOrgCollection(org.id, 'purchaseOrders', setPurchaseOrders, 'date'),
+      watchOrgCollection(org.id, 'deliveryChallans', setDeliveryChallans, 'date'),
       watchOrgCollection(org.id, 'recurringTemplates', setRecurringTemplates, 'nextRunDate'),
       watchOrgCollection(org.id, 'reconciledEntries', setReconciledEntries, 'accountId'),
       watchOrgCollection(org.id, 'members', setMembers, 'joinedAt'),
@@ -281,6 +285,7 @@ export default function App() {
           {tab === 'journal' && <JournalEntries orgId={org.id} accounts={accounts} entries={entries} />}
           {tab === 'estimates' && <Estimates orgId={org.id} accounts={accounts} estimates={estimates} invoices={invoices} customers={customers} items={items} org={org} />}
           {tab === 'purchaseOrders' && <PurchaseOrders orgId={org.id} accounts={accounts} purchaseOrders={purchaseOrders} bills={bills} vendors={vendors} items={items} org={org} />}
+          {tab === 'deliveryChallan' && <DeliveryChallan orgId={org.id} challans={deliveryChallans} customers={customers} items={items} org={org} />}
           {tab === 'invoices' && <Invoices orgId={org.id} accounts={accounts} invoices={invoices} customers={customers} items={items} creditNotes={creditNotes} entries={entries} org={org} />}
           {tab === 'bills' && <Bills orgId={org.id} accounts={accounts} bills={bills} vendors={vendors} items={items} debitNotes={debitNotes} entries={entries} org={org} />}
           {tab === 'recurring' && <RecurringInvoices orgId={org.id} templates={recurringTemplates} customers={customers} items={items} />}

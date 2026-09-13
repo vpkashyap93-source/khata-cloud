@@ -181,6 +181,12 @@ Balance Sheet reports - all backed by Firebase, in real time.
   document's own cumulative amount paid, not a separately dated record per
   partial payment, so it shows open items and history honestly instead of
   inventing payment dates it doesn't have.
+- **Delivery Challan**: goods sent without a tax invoice - for approval,
+  job work, a sample, or on returnable loan (`src/components/DeliveryChallan.jsx`).
+  No GST and no accounting effect (no journal entry, no Accounts
+  Receivable), but a tracked item still gets a stock movement, since the
+  goods really did leave the premises whether or not they were ever
+  invoiced.
 
 ## Run locally
 
