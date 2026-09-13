@@ -13,6 +13,7 @@ import {
   round2,
   computeDueDate,
   isOverdue,
+  liquidAccounts,
 } from '../lib/accounting.js'
 import { addOrgDoc, setOrgDoc } from '../firebase.js'
 import Icon from './icons.jsx'
@@ -77,8 +78,9 @@ function PrintView({ doc, org, config, onClose }) {
 
 function RecordPayment({ orgId, doc, accounts, config, onDone }) {
   const due = balanceDue(doc).due
+  const paymentAccounts = liquidAccounts(accounts)
   const [amount, setAmount] = useState(due)
-  const [cashAccount, setCashAccount] = useState('Cash')
+  const [cashAccount, setCashAccount] = useState(() => paymentAccounts.find((account) => account.name === 'Cash')?.name || paymentAccounts[0]?.name || 'Cash')
   const [error, setError] = useState('')
 
   const submit = async (event) => {
@@ -108,8 +110,7 @@ function RecordPayment({ orgId, doc, accounts, config, onDone }) {
         <label>
           {config.paymentDirection === 'receivable' ? 'Received into' : 'Paid from'}
           <select value={cashAccount} onChange={(event) => setCashAccount(event.target.value)}>
-            <option value="Cash">Cash</option>
-            <option value="Bank">Bank</option>
+            {paymentAccounts.map((account) => <option key={account.id} value={account.name}>{account.name}</option>)}
           </select>
         </label>
         <span className="voucher-form-hint">Balance due: {due.toFixed(2)}</span>

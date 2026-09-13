@@ -1,4 +1,4 @@
-import { accountBalance, cashTrend, monthlyIncomeExpense, topExpenseAccounts, invoiceStats, upcomingDues, round2 } from '../lib/accounting.js'
+import { accountBalance, cashTrend, monthlyIncomeExpense, topExpenseAccounts, invoiceStats, upcomingDues, liquidAccounts, round2 } from '../lib/accounting.js'
 import Icon from './icons.jsx'
 
 const money = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
@@ -103,13 +103,11 @@ function IncomeExpenseChart({ series }) {
 export default function Dashboard({ accounts, entries, invoices, bills }) {
   const receivable = accounts.find((account) => account.name === 'Accounts Receivable')
   const payable = accounts.find((account) => account.name === 'Accounts Payable')
-  const cash = accounts.find((account) => account.name === 'Cash')
-  const bank = accounts.find((account) => account.name === 'Bank')
 
   const receivableBalance = receivable ? accountBalance(receivable, entries).balance : 0
   const payableBalance = payable ? accountBalance(payable, entries).balance : 0
-  const cashBalance = cash ? accountBalance(cash, entries).balance : 0
-  const bankBalance = bank ? accountBalance(bank, entries).balance : 0
+  const liquidBalances = liquidAccounts(accounts).map((account) => ({ name: account.name, balance: accountBalance(account, entries).balance }))
+  const totalLiquid = round2(liquidBalances.reduce((total, item) => total + item.balance, 0))
 
   const monthStart = new Date().toISOString().slice(0, 8) + '01'
   const incomeAccounts = accounts.filter((account) => account.type === 'income')
@@ -139,7 +137,13 @@ export default function Dashboard({ accounts, entries, invoices, bills }) {
   return (
     <div className="dashboard">
       <div className="kpi-row">
-        <KpiCard label="Cash &amp; Bank" value={money(cashBalance + bankBalance)} tone="blue" icon="dashboard" sub={`Cash ${money(cashBalance)} · Bank ${money(bankBalance)}`} />
+        <KpiCard
+          label="Cash &amp; Bank"
+          value={money(totalLiquid)}
+          tone="blue"
+          icon="dashboard"
+          sub={liquidBalances.map((item) => `${item.name} ${money(item.balance)}`).join(' · ')}
+        />
         <KpiCard label="Receivables" value={money(receivableBalance)} tone="green" icon="invoices" sub={`${salesStats.overdueCount} overdue invoice${salesStats.overdueCount === 1 ? '' : 's'}`} />
         <KpiCard label="Payables" value={money(payableBalance)} tone="orange" icon="bills" sub={`${purchaseStats.unpaidCount} unpaid bill${purchaseStats.unpaidCount === 1 ? '' : 's'}`} />
         <KpiCard label="Net Profit (MTD)" value={money(netProfit)} tone={netProfit >= 0 ? 'green' : 'orange'} icon="reports" sub={`Income ${money(monthIncome)} · Expense ${money(monthExpense)}`} />

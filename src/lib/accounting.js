@@ -74,6 +74,15 @@ export const calcGst = (taxableAmount, gstPercent, interState) => {
 
 export const findAccountId = (accounts, name) => accounts.find((account) => account.name === name)?.id || null
 
+// Asset accounts a payment can actually be received into or paid from -
+// every asset except the two the app manages automatically (Accounts
+// Receivable, only ever touched via invoices/bills/payments themselves;
+// Input GST Credit, only via bills) - so a business with more than one
+// bank account sees all of them here, not just the two seeded by default.
+export const liquidAccounts = (accounts) => accounts.filter(
+  (account) => account.type === 'asset' && !['Accounts Receivable', 'Input GST Credit'].includes(account.name),
+)
+
 // Builds the debit/credit lines a sale should post: the customer owes the
 // full invoice total (Accounts Receivable), Sales Revenue is credited for
 // the taxable amount, and the GST collected is credited to GST Payable.
@@ -265,11 +274,11 @@ export const computeLedger = (account, entries) => {
   })
 }
 
-// Combined running balance of Cash + Bank across every entry, in
-// chronological order - the "cash position over time" line the dashboard
-// charts.
+// Combined running balance of every liquid account (Cash, Bank, and any
+// other bank account added later) across every entry, in chronological
+// order - the "cash position over time" line the dashboard charts.
 export const cashTrend = (accounts, entries) => {
-  const cashAccountIds = accounts.filter((account) => account.name === 'Cash' || account.name === 'Bank').map((account) => account.id)
+  const cashAccountIds = liquidAccounts(accounts).map((account) => account.id)
   let running = 0
   return entries
     .slice()

@@ -132,6 +132,12 @@ Balance Sheet reports - all backed by Firebase, in real time.
   `OB`-numbered invoices/bills, so they show up in that party's own history
   and count correctly toward Aging and Dashboard's upcoming dues, not just
   as one lump sum. Safe to use more than once (e.g. one party at a time).
+- **Multiple bank accounts**: any asset account other than Accounts
+  Receivable/Input GST Credit (`liquidAccounts` in `src/lib/accounting.js`)
+  counts as a place money can be received into or paid from - so adding a
+  second (or third) bank account in Chart of Accounts makes it show up
+  everywhere a payment or reconciliation account is picked, and in the
+  Dashboard's Cash &amp; Bank total, not just the two seeded by default.
 
 ## Run locally
 
