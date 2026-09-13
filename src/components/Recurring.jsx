@@ -7,15 +7,17 @@ const today = () => new Date().toISOString().slice(0, 10)
 const blankItem = () => ({ description: '', qty: 1, rate: '', itemId: null })
 const money = (value) => Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-// A saved template for a sales invoice that repeats on a schedule (a
-// monthly retainer, a weekly service, etc). This screen only manages the
-// template - actually generating the next invoice when it comes due
-// happens once in App.jsx (see the recurring-generation effect there), so
-// it works no matter which screen is open when the due date arrives, not
-// only while this one is. It still needs someone to open the app on or
-// after that date - there's no server here to fire it while nobody's
-// looking.
-export default function Recurring({ orgId, templates, customers, items }) {
+// A saved template for a Sales Invoice or Purchase Bill that repeats on a
+// schedule (a monthly retainer, rent, a subscription, etc). This screen
+// only manages the template - actually generating the next document when
+// it comes due happens once in App.jsx (see the recurring-generation
+// effect there), so it works no matter which screen is open when the due
+// date arrives, not only while this one is. It still needs someone to open
+// the app on or after that date - there's no server here to fire it while
+// nobody's looking. Shared between Recurring Invoices and Recurring Bills
+// the same way Invoicing.jsx shares one form between the two document
+// types - only the party/collection labels differ.
+function RecurringTemplates({ orgId, templates, contacts, items, config }) {
   const [partyName, setPartyName] = useState('')
   const [lineItems, setLineItems] = useState([blankItem()])
   const [gstPercent, setGstPercent] = useState(18)
@@ -24,6 +26,8 @@ export default function Recurring({ orgId, templates, customers, items }) {
   const [startDate, setStartDate] = useState(today())
   const [endDate, setEndDate] = useState('')
   const [error, setError] = useState('')
+
+  const scopedTemplates = templates.filter((template) => (template.docType || 'invoice') === config.docType)
 
   const updateItem = (index, field, value) => {
     setLineItems((prev) => prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)))
@@ -44,15 +48,16 @@ export default function Recurring({ orgId, templates, customers, items }) {
     event.preventDefault()
     setError('')
     const trimmedName = partyName.trim()
-    if (!trimmedName) { setError('Enter a customer name.'); return }
+    if (!trimmedName) { setError(`Enter a ${config.partyLabel.toLowerCase()} name.`); return }
     if (subtotal <= 0) { setError('Add at least one line item with an amount.'); return }
     if (endDate && endDate < startDate) { setError('End date must be after the start date.'); return }
 
-    if (!customers.some((contact) => contact.name.toLowerCase() === trimmedName.toLowerCase())) {
-      await addOrgDoc(orgId, 'customers', { name: trimmedName })
+    if (!contacts.some((contact) => contact.name.toLowerCase() === trimmedName.toLowerCase())) {
+      await addOrgDoc(orgId, config.contactsCollection, { name: trimmedName })
     }
 
     await addOrgDoc(orgId, 'recurringTemplates', {
+      docType: config.docType,
       partyName: trimmedName,
       items: lineItems.filter((item) => (Number(item.qty) || 0) > 0 && (Number(item.rate) || 0) > 0),
       gstPercent: Number(gstPercent) || 0,
@@ -77,22 +82,22 @@ export default function Recurring({ orgId, templates, customers, items }) {
 
   return (
     <div className="panel">
-      <h2>Recurring Invoices</h2>
+      <h2>{config.title}</h2>
       <p className="section-sub">
-        A template that generates a new Sales Invoice automatically the next time you open Khata Cloud on or after its due date - handy for monthly retainers or subscriptions.
+        A template that generates a new {config.docWord} automatically the next time you open Khata Cloud on or after its due date - handy for {config.examples}.
       </p>
       <form className="journal-form" onSubmit={submit}>
         <div className="journal-header-row">
           <label className="grow">
-            Customer
+            {config.partyLabel}
             <input
               value={partyName}
               onChange={(event) => setPartyName(event.target.value)}
-              placeholder="Customer"
-              list="recurring-contacts"
+              placeholder={config.partyLabel}
+              list={`recurring-${config.docType}-contacts`}
             />
-            <datalist id="recurring-contacts">
-              {customers.map((contact) => <option key={contact.id} value={contact.name} />)}
+            <datalist id={`recurring-${config.docType}-contacts`}>
+              {contacts.map((contact) => <option key={contact.id} value={contact.name} />)}
             </datalist>
           </label>
           <label>
@@ -155,9 +160,9 @@ export default function Recurring({ orgId, templates, customers, items }) {
       </form>
 
       <h3>Active templates</h3>
-      {templates.length === 0 && <p className="empty-note">No recurring invoices set up yet.</p>}
+      {scopedTemplates.length === 0 && <p className="empty-note">No {config.title.toLowerCase()} set up yet.</p>}
       <div className="voucher-list">
-        {templates.map((template) => (
+        {scopedTemplates.map((template) => (
           <div key={template.id} className={`voucher-card ${!template.active ? 'voided' : ''}`}>
             <div className="voucher-header">
               <div className="voucher-header-main">
@@ -173,7 +178,7 @@ export default function Recurring({ orgId, templates, customers, items }) {
               </div>
             </div>
             <p className="voucher-narration">
-              {template.active ? `Next invoice: ${template.nextRunDate}` : 'Paused'}
+              {template.active ? `Next ${config.docWord.toLowerCase()}: ${template.nextRunDate}` : 'Paused'}
               {template.generatedCount > 0 && ` · ${template.generatedCount} generated so far`}
               {template.endDate && ` · ends ${template.endDate}`}
             </p>
@@ -187,5 +192,43 @@ export default function Recurring({ orgId, templates, customers, items }) {
         ))}
       </div>
     </div>
+  )
+}
+
+export function RecurringInvoices({ orgId, templates, customers, items }) {
+  return (
+    <RecurringTemplates
+      orgId={orgId}
+      templates={templates}
+      contacts={customers}
+      items={items}
+      config={{
+        docType: 'invoice',
+        partyLabel: 'Customer',
+        contactsCollection: 'customers',
+        title: 'Recurring Invoices',
+        docWord: 'Sales Invoice',
+        examples: 'monthly retainers or subscriptions you bill customers',
+      }}
+    />
+  )
+}
+
+export function RecurringBills({ orgId, templates, vendors, items }) {
+  return (
+    <RecurringTemplates
+      orgId={orgId}
+      templates={templates}
+      contacts={vendors}
+      items={items}
+      config={{
+        docType: 'bill',
+        partyLabel: 'Vendor',
+        contactsCollection: 'vendors',
+        title: 'Recurring Bills',
+        docWord: 'Purchase Bill',
+        examples: 'rent, software subscriptions, or any vendor charge that repeats',
+      }}
+    />
   )
 }

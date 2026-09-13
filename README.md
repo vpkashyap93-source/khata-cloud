@@ -84,14 +84,17 @@ Balance Sheet reports - all backed by Firebase, in real time.
   owed" (`computeDueDate` / `isOverdue` in `src/lib/accounting.js`).
   The Dashboard's "Upcoming dues" widget lists the nearest-due unpaid
   invoices and bills, overdue ones first (`upcomingDues`).
-- **Recurring invoices**: a saved template (party, items, GST, frequency)
-  for a monthly retainer or subscription. There's no server here to fire it
-  in the background, so it isn't a true background job - the next invoice
-  generates the next time someone opens Khata Cloud on or after the
-  scheduled date (`isTemplateDue` / `advanceDate` in `src/lib/accounting.js`,
-  checked once on load in `App.jsx`), catching up one period at a time if
-  several were missed. A template can be paused/resumed at any time
-  (`src/components/Recurring.jsx`).
+- **Recurring invoices &amp; bills**: a saved template (party, items, GST,
+  frequency) for a monthly retainer, subscription, or a recurring vendor
+  charge like rent. There's no server here to fire it in the background, so
+  it isn't a true background job - the next invoice/bill generates the next
+  time someone opens Khata Cloud on or after the scheduled date
+  (`isTemplateDue` / `advanceDate` in `src/lib/accounting.js`, checked once
+  on load in `App.jsx`), catching up one period at a time if several were
+  missed. A template can be paused/resumed at any time
+  (`src/components/Recurring.jsx`, shared between Recurring Invoices and
+  Recurring Bills the same way Invoicing.jsx shares one form between Sales
+  Invoices and Purchase Bills).
 - **Payment reminders**: unpaid or overdue invoices get Email and WhatsApp
   action-pills that open a pre-filled `mailto:`/`wa.me:` message using the
   customer's saved contact details - nothing is sent automatically, the
