@@ -187,6 +187,13 @@ Balance Sheet reports - all backed by Firebase, in real time.
   Receivable), but a tracked item still gets a stock movement, since the
   goods really did leave the premises whether or not they were ever
   invoiced.
+- **Full data backup**: Settings → Data Backup downloads every collection
+  (accounts, journal entries, invoices, bills, customers, vendors, items,
+  notes, stock movements, estimates, purchase orders, delivery challans,
+  recurring templates, reconciled entries) plus the org profile as one JSON
+  file (`downloadJson` in `src/lib/csv.js`) - the business's own copy of its
+  data, readable independently of this app or Firebase. Not a restore tool,
+  just a safety net.
 
 ## Run locally
 

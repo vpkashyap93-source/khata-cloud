@@ -298,7 +298,30 @@ export default function App() {
           {tab === 'transfer' && <TransferFunds orgId={org.id} accounts={accounts} entries={entries} />}
           {tab === 'statements' && <Statements customers={customers} vendors={vendors} invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} org={org} />}
           {tab === 'reports' && <Reports accounts={accounts} entries={entries} invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} items={items} />}
-          {tab === 'settings' && <Settings orgId={org.id} org={org} members={members} />}
+          {tab === 'settings' && (
+            <Settings
+              orgId={org.id}
+              org={org}
+              members={members}
+              backupData={{
+                accounts,
+                journalEntries: entries,
+                invoices,
+                bills,
+                customers,
+                vendors,
+                items,
+                creditNotes,
+                debitNotes,
+                stockMovements,
+                estimates,
+                purchaseOrders,
+                deliveryChallans,
+                recurringTemplates,
+                reconciledEntries,
+              }}
+            />
+          )}
         </main>
       </div>
 

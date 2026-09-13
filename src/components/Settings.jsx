@@ -1,16 +1,19 @@
 import { useState } from 'react'
 import { updateOrg } from '../firebase.js'
+import { downloadJson } from '../lib/csv.js'
 import Icon from './icons.jsx'
 
 const STATES = [
   'Andhra Pradesh', 'Bihar', 'Delhi', 'Gujarat', 'Haryana', 'Karnataka', 'Kerala', 'Madhya Pradesh',
   'Maharashtra', 'Punjab', 'Rajasthan', 'Tamil Nadu', 'Telangana', 'Uttar Pradesh', 'West Bengal', 'Other',
 ]
+const today = () => new Date().toISOString().slice(0, 10)
+const slugify = (value) => (value || 'business').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
 // The business profile that appears on the letterhead of every printed
 // invoice and bill - name, GSTIN, address, contact details, and the prefix
 // used for invoice/bill numbering.
-export default function Settings({ orgId, org, members }) {
+export default function Settings({ orgId, org, members, backupData }) {
   const [form, setForm] = useState({
     name: org.name || '',
     gstin: org.gstin || '',
@@ -178,6 +181,20 @@ export default function Settings({ orgId, org, members }) {
           {members.length === 0 && <tr><td colSpan={2} className="empty-note">No team members yet.</td></tr>}
         </tbody>
       </table>
+
+      <p className="report-section-title" style={{ marginTop: 24 }}>Data Backup</p>
+      <p className="section-sub">
+        Your own copy of everything - accounts, journal entries, invoices, bills, customers, vendors, items, and
+        more - as one JSON file, readable independently of this app or Firebase. Not a restore tool, just peace of
+        mind: keep a copy somewhere safe.
+      </p>
+      <button
+        type="button"
+        className="action-pill"
+        onClick={() => downloadJson(`khata-cloud-backup-${slugify(org.name)}-${today()}.json`, { exportedAt: today(), org, ...backupData })}
+      >
+        <Icon name="download" size={13} />Download all data (JSON)
+      </button>
     </div>
   )
 }
