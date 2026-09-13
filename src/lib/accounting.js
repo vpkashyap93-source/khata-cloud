@@ -394,6 +394,30 @@ export const upcomingDues = (invoices, bills, limit = 5) => {
     .slice(0, limit)
 }
 
+// The classic "who owes what, and how late" buckets - unpaid invoices (or
+// bills) grouped by how many days past their due date they are, each
+// summed to its balance still owed. Used for the Reports "Aging" tab.
+export const AGING_BUCKETS = [
+  { label: 'Current', test: (days) => days <= 0 },
+  { label: '1-30 days', test: (days) => days >= 1 && days <= 30 },
+  { label: '31-60 days', test: (days) => days >= 31 && days <= 60 },
+  { label: '61-90 days', test: (days) => days >= 61 && days <= 90 },
+  { label: '90+ days', test: () => true },
+]
+
+export const computeAging = (docs, today = new Date()) => {
+  const buckets = AGING_BUCKETS.map((bucket) => ({ label: bucket.label, total: 0 }))
+  docs.forEach((doc) => {
+    if (doc.voided) return
+    const { due, status } = balanceDue(doc)
+    if (status === 'paid') return
+    const days = Math.floor((today - new Date(computeDueDate(doc))) / 86400000)
+    const bucket = buckets[AGING_BUCKETS.findIndex((candidate) => candidate.test(days))]
+    bucket.total = round2(bucket.total + due)
+  })
+  return buckets
+}
+
 // Current stock on hand for one tracked item: its opening stock plus every
 // movement against it - sales go out (negative), purchases and manual
 // adjustments go however they're signed.

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { computeTrialBalance, computeProfitAndLoss, computeBalanceSheet, computeGstSummary } from '../lib/accounting.js'
+import { computeTrialBalance, computeProfitAndLoss, computeBalanceSheet, computeGstSummary, computeAging, round2 } from '../lib/accounting.js'
 import { downloadCsv } from '../lib/csv.js'
 import Icon from './icons.jsx'
 
@@ -262,6 +262,63 @@ function GstSummary({ invoices, bills, creditNotes, debitNotes }) {
   )
 }
 
+function Aging({ invoices, bills }) {
+  const receivables = computeAging(invoices)
+  const payables = computeAging(bills)
+  const totalReceivable = round2(receivables.reduce((total, bucket) => total + bucket.total, 0))
+  const totalPayable = round2(payables.reduce((total, bucket) => total + bucket.total, 0))
+  const overdueReceivable = round2(receivables.filter((bucket) => bucket.label !== 'Current').reduce((total, bucket) => total + bucket.total, 0))
+  const overduePayable = round2(payables.filter((bucket) => bucket.label !== 'Current').reduce((total, bucket) => total + bucket.total, 0))
+
+  const exportCsv = () => {
+    downloadCsv(`aging-${today()}.csv`, [
+      ['Type', ...receivables.map((bucket) => bucket.label), 'Total'],
+      ['Receivables', ...receivables.map((bucket) => amt(bucket.total)), amt(totalReceivable)],
+      ['Payables', ...payables.map((bucket) => amt(bucket.total)), amt(totalPayable)],
+    ])
+  }
+
+  const bucketTable = (buckets, total) => (
+    <table>
+      <thead><tr>{buckets.map((bucket) => <th key={bucket.label} className="amt">{bucket.label}</th>)}<th className="amt">Total</th></tr></thead>
+      <tbody>
+        <tr>
+          {buckets.map((bucket) => <td key={bucket.label} className="amt">{bucket.total > 0 ? money(bucket.total) : '-'}</td>)}
+          <td className="amt">{money(total)}</td>
+        </tr>
+      </tbody>
+    </table>
+  )
+
+  return (
+    <>
+      <ExportButton onClick={exportCsv} />
+      <div className="report-summary">
+        <div className="report-stat">
+          <div className="report-stat-label">Total Receivable</div>
+          <div className="report-stat-value">{money(totalReceivable)}</div>
+        </div>
+        <div className="report-stat">
+          <div className="report-stat-label">Overdue Receivable</div>
+          <div className={`report-stat-value ${overdueReceivable > 0 ? 'red' : 'green'}`}>{money(overdueReceivable)}</div>
+        </div>
+        <div className="report-stat">
+          <div className="report-stat-label">Total Payable</div>
+          <div className="report-stat-value">{money(totalPayable)}</div>
+        </div>
+        <div className="report-stat">
+          <div className="report-stat-label">Overdue Payable</div>
+          <div className={`report-stat-value ${overduePayable > 0 ? 'red' : 'green'}`}>{money(overduePayable)}</div>
+        </div>
+      </div>
+      <p className="report-section-title">Receivables aging (money customers owe you)</p>
+      {bucketTable(receivables, totalReceivable)}
+      <p className="report-section-title">Payables aging (money you owe vendors)</p>
+      {bucketTable(payables, totalPayable)}
+    </>
+  )
+}
+
 export default function Reports({ accounts, entries, invoices, bills, creditNotes, debitNotes }) {
   const [tab, setTab] = useState('trial')
   return (
@@ -272,11 +329,13 @@ export default function Reports({ accounts, entries, invoices, bills, creditNote
         <button className={tab === 'pnl' ? 'active' : ''} onClick={() => setTab('pnl')}>Profit &amp; Loss</button>
         <button className={tab === 'bs' ? 'active' : ''} onClick={() => setTab('bs')}>Balance Sheet</button>
         <button className={tab === 'gst' ? 'active' : ''} onClick={() => setTab('gst')}>GST Summary</button>
+        <button className={tab === 'aging' ? 'active' : ''} onClick={() => setTab('aging')}>Aging</button>
       </div>
       {tab === 'trial' && <TrialBalance accounts={accounts} entries={entries} />}
       {tab === 'pnl' && <ProfitAndLoss accounts={accounts} entries={entries} />}
       {tab === 'bs' && <BalanceSheet accounts={accounts} entries={entries} />}
       {tab === 'gst' && <GstSummary invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} />}
+      {tab === 'aging' && <Aging invoices={invoices} bills={bills} />}
     </div>
   )
 }

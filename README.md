@@ -104,6 +104,10 @@ Balance Sheet reports - all backed by Firebase, in real time.
   stored per account+entry in `reconciledEntries`); the reconciled total is
   checked against a statement closing balance you enter yourself - there's
   no live bank feed here, so nothing is fetched or matched automatically.
+- **Aging report**: a Reports → Aging tab groups unpaid invoices and bills
+  into Current / 1-30 / 31-60 / 61-90 / 90+ day buckets by how overdue they
+  are (`computeAging` in `src/lib/accounting.js`), so it's obvious at a
+  glance who's owed money the longest and who you owe the longest.
 
 ## Run locally
 
