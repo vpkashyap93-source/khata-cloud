@@ -172,6 +172,15 @@ Balance Sheet reports - all backed by Firebase, in real time.
   export too) - the shape a GSTR-1 filing actually asks for, not just one
   combined total. A line with no catalog item, or whose item has no code,
   groups under "Not specified" rather than being dropped.
+- **Statement of Account**: pick a customer or vendor (`src/components/Statements.jsx`)
+  to see what they owe you, or what you owe them, right now - open
+  invoices/bills with balances due, plus the full document history and any
+  credit/debit notes - and print it to send. Built entirely from
+  invoices/bills and their notes (which already carry a real `partyName`),
+  not a fabricated day-by-day running balance - this app only tracks each
+  document's own cumulative amount paid, not a separately dated record per
+  partial payment, so it shows open items and history honestly instead of
+  inventing payment dates it doesn't have.
 
 ## Run locally
 
