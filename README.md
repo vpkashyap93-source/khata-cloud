@@ -241,6 +241,20 @@ Balance Sheet reports - all backed by Firebase, in real time.
   best-effort, several of the portal's own Excel column names. Bills whose
   vendor has no saved GSTIN can't be matched at all and are flagged
   separately rather than silently skipped.
+- **GSTR-3B Summary**: Reports -> GSTR-3B Summary is a worksheet for the
+  return tax actually gets paid through - filled in directly on the GST
+  portal rather than uploaded as a file, so this is meant to be copied
+  across, not filed from (`buildGstr3b` in `src/lib/gstr3b.js`). Built
+  from the same totals GSTR-1 and Purchase Register already use: Table
+  3.1(a) outward taxable supplies, Table 3.2 interstate supplies to
+  unregistered persons (state-wise, reusing GSTR-1's B2CS/B2CL data), Table
+  4 eligible ITC (reported as one "all other ITC" figure - imports,
+  reverse charge, and ISD credit aren't tracked here), and Table 6.1 tax
+  payable/paid. Table 6.1's cash-payable figures apply GST's actual
+  IGST-first ITC set-off order (Rule 88A) rather than netting each tax
+  head separately, since that would overstate cash due whenever IGST
+  credit is available to cover a CGST/SGST shortfall - still worth
+  checking against the portal's own set-off calculation before paying.
 
 ## Run locally
 

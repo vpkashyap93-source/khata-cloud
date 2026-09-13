@@ -43,3 +43,7 @@ export const GST_STATE_CODES = {
 }
 
 export const STATE_NAMES = Object.keys(GST_STATE_CODES)
+
+export const STATE_NAME_BY_CODE = Object.fromEntries(
+  Object.entries(GST_STATE_CODES).map(([name, code]) => [code, name]),
+)

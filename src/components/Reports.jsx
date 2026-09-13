@@ -4,6 +4,7 @@ import { downloadCsv, downloadJson, parseCsvObjects } from '../lib/csv.js'
 import { buildGstr1 } from '../lib/gstr1.js'
 import { buildPurchaseRegister } from '../lib/purchaseRegister.js'
 import { parseGstr2bRows, reconcileGstr2b } from '../lib/gstr2bReconcile.js'
+import { buildGstr3b } from '../lib/gstr3b.js'
 import Icon from './icons.jsx'
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -687,6 +688,143 @@ function Gstr2bMatch({ bills, vendors }) {
   )
 }
 
+// A worksheet for GSTR-3B - the return tax actually gets paid through,
+// filled in directly on the portal rather than uploaded as a file like
+// GSTR-1. Built from the same sales/purchase totals GSTR-1 and Purchase
+// Register already use, so there's nothing new to reconcile - just copy
+// the numbers across. See buildGstr3b in src/lib/gstr3b.js for exactly
+// what Table 4's "All other ITC" does and doesn't cover, and for the
+// IGST-first set-off order Table 6.1's cash-payable figures follow.
+function Gstr3bSummary({ invoices, bills, creditNotes, debitNotes, customers, items }) {
+  const [from, setFrom] = useState(monthStart())
+  const [to, setTo] = useState(today())
+  const worksheet = buildGstr3b(invoices, bills, creditNotes, debitNotes, customers, items, from, to)
+  const { outwardSupplies, interstateSupplies, itcAvailable, setOff } = worksheet
+
+  const totalCash = round2(setOff.cashIgst + setOff.cashCgst + setOff.cashSgst)
+  const totalItcCarried = round2(setOff.itcCarriedForward.igst + setOff.itcCarriedForward.cgst + setOff.itcCarriedForward.sgst)
+
+  const exportCsv = () => {
+    downloadCsv(`gstr3b-worksheet-${from}-to-${to}.csv`, [
+      ['Table 3.1(a) - Outward taxable supplies', 'Taxable Value', 'IGST', 'CGST', 'SGST'],
+      ['', amt(outwardSupplies.taxable), amt(outwardSupplies.igst), amt(outwardSupplies.cgst), amt(outwardSupplies.sgst)],
+      [],
+      ['Table 3.2 - Interstate supplies to unregistered persons', 'Place of Supply', 'Taxable Value', 'IGST'],
+      ...interstateSupplies.map((row) => ['', row.stateName, amt(row.taxable), amt(row.igst)]),
+      [],
+      ['Table 4 - Eligible ITC (All other ITC)', 'IGST', 'CGST', 'SGST'],
+      ['', amt(itcAvailable.igst), amt(itcAvailable.cgst), amt(itcAvailable.sgst)],
+      [],
+      ['Table 6.1 - Payment of tax', 'IGST', 'CGST', 'SGST', 'Total'],
+      ['Tax payable', amt(outwardSupplies.igst), amt(outwardSupplies.cgst), amt(outwardSupplies.sgst), amt(round2(outwardSupplies.igst + outwardSupplies.cgst + outwardSupplies.sgst))],
+      ['Paid through ITC', amt(round2(outwardSupplies.igst - setOff.cashIgst)), amt(round2(outwardSupplies.cgst - setOff.cashCgst)), amt(round2(outwardSupplies.sgst - setOff.cashSgst)), amt(round2(outwardSupplies.igst + outwardSupplies.cgst + outwardSupplies.sgst - totalCash))],
+      ['Paid in cash', amt(setOff.cashIgst), amt(setOff.cashCgst), amt(setOff.cashSgst), amt(totalCash)],
+      ['ITC carried forward', amt(setOff.itcCarriedForward.igst), amt(setOff.itcCarriedForward.cgst), amt(setOff.itcCarriedForward.sgst), amt(totalItcCarried)],
+    ])
+  }
+
+  return (
+    <>
+      <div className="journal-header-row">
+        <label>From <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
+        <label>To <input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
+      </div>
+      <p className="section-sub">
+        A worksheet to copy into the GSTR-3B form on the GST portal, not something you upload - 3B is filled in
+        directly there. Covers what this app tracks: outward supplies, interstate B2C by state, and ITC from bills
+        (as one "all other ITC" figure - imports, reverse charge, and ISD credit aren&apos;t tracked here). Check the
+        portal&apos;s own set-off calculation against Table 6.1 below before you pay.
+      </p>
+      <ExportButton onClick={exportCsv} />
+      <div className="report-summary">
+        <div className="report-stat">
+          <div className="report-stat-label">Tax Payable</div>
+          <div className="report-stat-value">{money(round2(outwardSupplies.igst + outwardSupplies.cgst + outwardSupplies.sgst))}</div>
+        </div>
+        <div className="report-stat">
+          <div className="report-stat-label">ITC Available</div>
+          <div className="report-stat-value">{money(round2(itcAvailable.igst + itcAvailable.cgst + itcAvailable.sgst))}</div>
+        </div>
+        <div className="report-stat">
+          <div className="report-stat-label">Net Payable in Cash</div>
+          <div className={`report-stat-value ${totalCash > 0 ? 'red' : 'green'}`}>{money(totalCash)}</div>
+        </div>
+      </div>
+
+      <p className="report-section-title">Table 3.1(a) - Outward taxable supplies</p>
+      <table>
+        <thead><tr><th className="amt">Taxable value</th><th className="amt">IGST</th><th className="amt">CGST</th><th className="amt">SGST</th></tr></thead>
+        <tbody>
+          <tr>
+            <td className="amt">{money(outwardSupplies.taxable)}</td>
+            <td className="amt">{money(outwardSupplies.igst)}</td>
+            <td className="amt">{money(outwardSupplies.cgst)}</td>
+            <td className="amt">{money(outwardSupplies.sgst)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p className="report-section-title">Table 3.2 - Interstate supplies to unregistered persons</p>
+      <table>
+        <thead><tr><th>Place of Supply</th><th className="amt">Taxable Value</th><th className="amt">IGST</th></tr></thead>
+        <tbody>
+          {interstateSupplies.map((row) => (
+            <tr key={row.pos}>
+              <td>{row.stateName}</td>
+              <td className="amt">{money(row.taxable)}</td>
+              <td className="amt">{money(row.igst)}</td>
+            </tr>
+          ))}
+          {interstateSupplies.length === 0 && <tr><td colSpan={3} className="empty-note">No interstate supplies to unregistered customers in this period.</td></tr>}
+        </tbody>
+      </table>
+
+      <p className="report-section-title">Table 4 - Eligible ITC (All other ITC)</p>
+      <table>
+        <thead><tr><th className="amt">IGST</th><th className="amt">CGST</th><th className="amt">SGST</th></tr></thead>
+        <tbody>
+          <tr>
+            <td className="amt">{money(itcAvailable.igst)}</td>
+            <td className="amt">{money(itcAvailable.cgst)}</td>
+            <td className="amt">{money(itcAvailable.sgst)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p className="report-section-title">Table 6.1 - Payment of tax</p>
+      <table>
+        <thead><tr><th></th><th className="amt">IGST</th><th className="amt">CGST</th><th className="amt">SGST</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Tax payable</td>
+            <td className="amt">{money(outwardSupplies.igst)}</td>
+            <td className="amt">{money(outwardSupplies.cgst)}</td>
+            <td className="amt">{money(outwardSupplies.sgst)}</td>
+          </tr>
+          <tr>
+            <td>Paid through ITC</td>
+            <td className="amt">{money(round2(outwardSupplies.igst - setOff.cashIgst))}</td>
+            <td className="amt">{money(round2(outwardSupplies.cgst - setOff.cashCgst))}</td>
+            <td className="amt">{money(round2(outwardSupplies.sgst - setOff.cashSgst))}</td>
+          </tr>
+          <tr>
+            <td>Paid in cash</td>
+            <td className="amt">{money(setOff.cashIgst)}</td>
+            <td className="amt">{money(setOff.cashCgst)}</td>
+            <td className="amt">{money(setOff.cashSgst)}</td>
+          </tr>
+          <tr>
+            <td>ITC carried forward</td>
+            <td className="amt">{money(setOff.itcCarriedForward.igst)}</td>
+            <td className="amt">{money(setOff.itcCarriedForward.cgst)}</td>
+            <td className="amt">{money(setOff.itcCarriedForward.sgst)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </>
+  )
+}
+
 function Aging({ invoices, bills }) {
   const receivables = computeAging(invoices)
   const payables = computeAging(bills)
@@ -757,6 +895,7 @@ export default function Reports({ accounts, entries, invoices, bills, creditNote
         <button className={tab === 'gstr1' ? 'active' : ''} onClick={() => setTab('gstr1')}>GSTR-1 Export</button>
         <button className={tab === 'purchaseRegister' ? 'active' : ''} onClick={() => setTab('purchaseRegister')}>Purchase Register</button>
         <button className={tab === 'gstr2b' ? 'active' : ''} onClick={() => setTab('gstr2b')}>GSTR-2B Match</button>
+        <button className={tab === 'gstr3b' ? 'active' : ''} onClick={() => setTab('gstr3b')}>GSTR-3B Summary</button>
         <button className={tab === 'aging' ? 'active' : ''} onClick={() => setTab('aging')}>Aging</button>
       </div>
       {tab === 'trial' && <TrialBalance accounts={accounts} entries={entries} />}
@@ -766,6 +905,7 @@ export default function Reports({ accounts, entries, invoices, bills, creditNote
       {tab === 'gstr1' && <Gstr1Export invoices={invoices} creditNotes={creditNotes} customers={customers} items={items} org={org} />}
       {tab === 'purchaseRegister' && <PurchaseRegister bills={bills} debitNotes={debitNotes} vendors={vendors} items={items} />}
       {tab === 'gstr2b' && <Gstr2bMatch bills={bills} vendors={vendors} />}
+      {tab === 'gstr3b' && <Gstr3bSummary invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} customers={customers} items={items} />}
       {tab === 'aging' && <Aging invoices={invoices} bills={bills} />}
     </div>
   )
