@@ -70,13 +70,32 @@ export const resetPassword = (email) => sendPasswordResetEmail(auth, email)
 // Every signed-in user maps to exactly one organisation. The first time a
 // user is seen we create a fresh org for them (seeded with a default chart
 // of accounts) - this keeps onboarding to a single step while still keeping
-// each business's ledgers isolated under orgs/{orgId}.
-export const ensureOrg = async (uid, email) => {
+// each business's ledgers isolated under orgs/{orgId}. Passing joinCode
+// (the org's own id, shared by its owner from Settings -> Team) joins that
+// existing org instead of creating a new one - the simplest possible team
+// model for a small business: every member gets the same full access, no
+// separate invite/approval step. Every org keeps an orgs/{orgId}/members/
+// {uid} doc for each person on it (used by Settings to list the team, and
+// by Firestore security rules to decide who can read/write that org).
+export const ensureOrg = async (uid, email, joinCode) => {
   const userRef = doc(db, 'accountingUsers', uid)
   const userSnap = await getDoc(userRef)
   if (userSnap.exists() && userSnap.data().orgId) {
     return userSnap.data().orgId
   }
+
+  const trimmedCode = (joinCode || '').trim()
+  if (trimmedCode) {
+    const orgRef = doc(db, 'orgs', trimmedCode)
+    const orgSnap = await getDoc(orgRef)
+    if (!orgSnap.exists()) {
+      throw new Error(`No business found for code "${trimmedCode}" - check the code and try again.`)
+    }
+    await setDoc(doc(db, 'orgs', trimmedCode, 'members', uid), { email: email || '', joinedAt: serverTimestamp() }, { merge: true })
+    await setDoc(userRef, { email: email || '', orgId: trimmedCode }, { merge: true })
+    return trimmedCode
+  }
+
   const orgId = uid
   await runTransaction(db, async (tx) => {
     const orgRef = doc(db, 'orgs', orgId)
@@ -93,6 +112,7 @@ export const ensureOrg = async (uid, email) => {
         const accountRef = doc(collection(db, 'orgs', orgId, 'accounts'))
         tx.set(accountRef, { ...account, createdAt: serverTimestamp() })
       })
+      tx.set(doc(db, 'orgs', orgId, 'members', uid), { email: email || '', joinedAt: serverTimestamp() })
     }
     tx.set(userRef, { email: email || '', orgId }, { merge: true })
   })

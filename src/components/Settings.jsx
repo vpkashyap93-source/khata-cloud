@@ -10,7 +10,7 @@ const STATES = [
 // The business profile that appears on the letterhead of every printed
 // invoice and bill - name, GSTIN, address, contact details, and the prefix
 // used for invoice/bill numbering.
-export default function Settings({ orgId, org }) {
+export default function Settings({ orgId, org, members }) {
   const [form, setForm] = useState({
     name: org.name || '',
     gstin: org.gstin || '',
@@ -23,6 +23,7 @@ export default function Settings({ orgId, org }) {
     paymentTermDays: org.paymentTermDays || 30,
   })
   const [saved, setSaved] = useState(false)
+  const [codeCopied, setCodeCopied] = useState(false)
 
   const update = (field, value) => { setForm((prev) => ({ ...prev, [field]: value })); setSaved(false) }
 
@@ -30,6 +31,16 @@ export default function Settings({ orgId, org }) {
     event.preventDefault()
     await updateOrg(orgId, form)
     setSaved(true)
+  }
+
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(orgId)
+      setCodeCopied(true)
+      setTimeout(() => setCodeCopied(false), 2000)
+    } catch {
+      // clipboard access denied - the code is still shown on screen to copy by hand
+    }
   }
 
   return (
@@ -99,6 +110,30 @@ export default function Settings({ orgId, org }) {
           {saved && <span className="save-confirm"><Icon name="check" size={13} />Saved</span>}
         </div>
       </form>
+
+      <p className="report-section-title" style={{ marginTop: 24 }}>Team</p>
+      <p className="section-sub">
+        Everyone who joins with this code gets full access to the same books - there are no separate roles yet.
+        Share it only with people you trust with your business's accounts.
+      </p>
+      <div className="journal-header-row">
+        <code className="join-code">{orgId}</code>
+        <button type="button" className="action-pill" onClick={copyCode}>
+          <Icon name={codeCopied ? 'check' : 'download'} size={13} />{codeCopied ? 'Copied' : 'Copy code'}
+        </button>
+      </div>
+      <table>
+        <thead><tr><th>Email</th><th>Joined</th></tr></thead>
+        <tbody>
+          {members.map((member) => (
+            <tr key={member.id}>
+              <td>{member.email || '(unknown)'}</td>
+              <td>{member.joinedAt?.toDate ? member.joinedAt.toDate().toISOString().slice(0, 10) : '-'}</td>
+            </tr>
+          ))}
+          {members.length === 0 && <tr><td colSpan={2} className="empty-note">No team members yet.</td></tr>}
+        </tbody>
+      </table>
     </div>
   )
 }

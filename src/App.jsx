@@ -51,6 +51,9 @@ export default function App() {
   const [estimates, setEstimates] = useState([])
   const [recurringTemplates, setRecurringTemplates] = useState([])
   const [reconciledEntries, setReconciledEntries] = useState([])
+  const [members, setMembers] = useState([])
+  const [orgError, setOrgError] = useState('')
+  const joinCodeRef = useRef('')
   const [tab, setTab] = useState('dashboard')
   const [navOpen, setNavOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -103,9 +106,18 @@ export default function App() {
     if (!user) return
     let unsub = () => {}
     let cancelled = false
-    ensureOrg(user.uid, user.email).then((orgId) => {
+    ensureOrg(user.uid, user.email, joinCodeRef.current).then((orgId) => {
       if (cancelled) return
       unsub = watchOrg(orgId, setOrg)
+    }).catch((err) => {
+      if (cancelled) return
+      // A bad join code (or any other setup failure) can't leave the user
+      // stuck on a blank "Setting up your business..." screen with no way
+      // back - sign them out so Login reappears with the error, letting
+      // them log back in (same credentials) and try again.
+      joinCodeRef.current = ''
+      setOrgError(err.message)
+      logOut()
     })
     return () => { cancelled = true; unsub() }
   }, [user])
@@ -126,6 +138,7 @@ export default function App() {
       watchOrgCollection(org.id, 'estimates', setEstimates, 'date'),
       watchOrgCollection(org.id, 'recurringTemplates', setRecurringTemplates, 'nextRunDate'),
       watchOrgCollection(org.id, 'reconciledEntries', setReconciledEntries, 'accountId'),
+      watchOrgCollection(org.id, 'members', setMembers, 'joinedAt'),
     ]
     return () => unsubs.forEach((unsub) => unsub())
   }, [org])
@@ -189,7 +202,15 @@ export default function App() {
   }
 
   if (user === undefined) return <div className="loading-screen">Loading...</div>
-  if (user === null) return <Login />
+  if (user === null) {
+    return (
+      <Login
+        onJoinCodeChange={(value) => { joinCodeRef.current = value }}
+        externalError={orgError}
+        onDismissError={() => setOrgError('')}
+      />
+    )
+  }
   if (!org) return <div className="loading-screen">Setting up your business...</div>
 
   const currentLabel = NAV.find((item) => item.id === tab)?.label || ''
@@ -258,7 +279,7 @@ export default function App() {
           {tab === 'ledger' && <Ledger accounts={accounts} entries={entries} />}
           {tab === 'reconciliation' && <Reconciliation orgId={org.id} accounts={accounts} entries={entries} reconciledEntries={reconciledEntries} />}
           {tab === 'reports' && <Reports accounts={accounts} entries={entries} invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} />}
-          {tab === 'settings' && <Settings orgId={org.id} org={org} />}
+          {tab === 'settings' && <Settings orgId={org.id} org={org} members={members} />}
         </main>
       </div>
 

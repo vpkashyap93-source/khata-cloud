@@ -108,6 +108,13 @@ Balance Sheet reports - all backed by Firebase, in real time.
   into Current / 1-30 / 31-60 / 61-90 / 90+ day buckets by how overdue they
   are (`computeAging` in `src/lib/accounting.js`), so it's obvious at a
   glance who's owed money the longest and who you owe the longest.
+- **Team**: a business can have more than one person on it. Settings → Team
+  shows a business code (the org's own id) - anyone who signs up with that
+  code in "Business code" joins the same books instead of starting a new
+  business, with full access (no separate roles yet). See "Firestore
+  security rules" below - this needs a one-time rule change to actually
+  take effect, since the org id no longer equals the only uid allowed to
+  touch it.
 
 ## Run locally
 
@@ -126,10 +133,53 @@ Pushing to `main` builds and deploys this app to GitHub Pages via
 `.github/workflows/deploy.yml` (Settings → Pages → Source must be set
 to "GitHub Actions" once, the first time).
 
+## Firestore security rules (required for Team to work)
+
+Team support means a business's data is no longer readable/writable only
+by the uid that matches its org id - it's readable/writable by anyone
+listed in that org's `members` subcollection. That needs a rule change in
+the Firebase console (Firestore Database → Rules → paste, then Publish) -
+this can't be done from this repo, since Firestore rules aren't project
+files, they're a separate config on the Firebase project itself:
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /accountingUsers/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    match /orgs/{orgId} {
+      function isMember() {
+        return request.auth != null &&
+          exists(/databases/$(database)/documents/orgs/$(orgId)/members/$(request.auth.uid));
+      }
+
+      allow read, write: if isMember();
+
+      match /members/{uid} {
+        // Anyone signed in can create ONLY their own membership doc (this
+        // is how joining with a business code works) - members can read
+        // the team list, but never add or remove someone else.
+        allow create: if request.auth != null && request.auth.uid == uid;
+        allow read, update, delete: if isMember();
+      }
+
+      match /{subcollection}/{docId} {
+        allow read, write: if isMember();
+      }
+    }
+  }
+}
+```
+
+If your project's rules already have custom logic beyond the default
+(unlikely, since none was set up in this repo), merge rather than
+overwrite - message where to look if unsure.
+
 ## Not in this first pass
 
-- Inviting additional team members into an existing org (each signup
-  currently gets its own single-owner org).
 - Actually filing GST returns (the GST Summary report covers what's
   owed; filing itself is out of scope).
 - Exporting to PDF (reports export to CSV; invoices/bills have a print

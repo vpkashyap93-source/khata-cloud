@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { signUp, logIn, resetPassword, isFirebaseConfigured } from '../firebase.js'
 
-export default function Login() {
+export default function Login({ onJoinCodeChange, externalError, onDismissError }) {
   const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [joinCode, setJoinCode] = useState('')
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [busy, setBusy] = useState(false)
@@ -13,6 +14,7 @@ export default function Login() {
     event.preventDefault()
     setError('')
     setInfo('')
+    onDismissError?.()
     setBusy(true)
     try {
       if (mode === 'signup') {
@@ -55,7 +57,20 @@ export default function Login() {
             />
           </label>
         )}
-        {error && <p className="auth-error">{error}</p>}
+        {mode !== 'reset' && (
+          <label>
+            Business code (optional)
+            <input
+              value={joinCode}
+              onChange={(event) => {
+                setJoinCode(event.target.value)
+                onJoinCodeChange?.(event.target.value)
+              }}
+              placeholder="To join an existing business - leave blank otherwise"
+            />
+          </label>
+        )}
+        {(error || externalError) && <p className="auth-error">{error || externalError}</p>}
         {info && <p className="auth-info">{info}</p>}
         <button type="submit" disabled={busy}>
           {busy ? 'Please wait...' : mode === 'signup' ? 'Create account' : mode === 'reset' ? 'Send reset email' : 'Log in'}
