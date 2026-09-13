@@ -202,6 +202,20 @@ Balance Sheet reports - all backed by Firebase, in real time.
   duplicates within the same file), and reports how many were added vs.
   skipped - safe to re-import the same file twice. A "Download CSV
   template" link on each screen shows the exact columns expected.
+- **GSTR-1 export**: Reports -> GSTR-1 Export builds the B2B, B2CL, B2CS,
+  CDNR, and HSN sections of a GSTR-1 return from the period's sales
+  invoices and credit notes, in the shape of the GST portal's own
+  "Returns Offline Tool" JSON (`buildGstr1` in `src/lib/gstr1.js`), plus a
+  human-readable CSV companion. Classification (B2B vs. B2C, place of
+  supply) depends on each Customer's GSTIN and State (`src/lib/gstStateCodes.js`
+  has the official 2-digit state codes; Customers/Vendors got a State field
+  for this). Deliberately out of scope: exports, advances (AT/ATADJ), the
+  documents-issued summary, and credit/debit notes against unregistered
+  customers (CDNUR) - edge cases most small domestic-only filers won't
+  hit. This is a best-effort match to the publicly documented schema, not
+  something issued or validated by the GST portal - the screen says so,
+  and flags both a missing org GSTIN and any invoice whose party name
+  doesn't match a saved customer (so it was defaulted to B2C).
 
 ## Run locally
 

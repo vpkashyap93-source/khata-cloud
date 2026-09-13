@@ -297,7 +297,7 @@ export default function App() {
           {tab === 'reconciliation' && <Reconciliation orgId={org.id} accounts={accounts} entries={entries} reconciledEntries={reconciledEntries} />}
           {tab === 'transfer' && <TransferFunds orgId={org.id} accounts={accounts} entries={entries} />}
           {tab === 'statements' && <Statements customers={customers} vendors={vendors} invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} org={org} />}
-          {tab === 'reports' && <Reports accounts={accounts} entries={entries} invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} items={items} />}
+          {tab === 'reports' && <Reports accounts={accounts} entries={entries} invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} items={items} customers={customers} org={org} />}
           {tab === 'settings' && (
             <Settings
               orgId={org.id}

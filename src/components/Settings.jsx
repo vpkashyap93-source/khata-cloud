@@ -1,12 +1,9 @@
 import { useState } from 'react'
 import { updateOrg } from '../firebase.js'
 import { downloadJson } from '../lib/csv.js'
+import { STATE_NAMES } from '../lib/gstStateCodes.js'
 import Icon from './icons.jsx'
 
-const STATES = [
-  'Andhra Pradesh', 'Bihar', 'Delhi', 'Gujarat', 'Haryana', 'Karnataka', 'Kerala', 'Madhya Pradesh',
-  'Maharashtra', 'Punjab', 'Rajasthan', 'Tamil Nadu', 'Telangana', 'Uttar Pradesh', 'West Bengal', 'Other',
-]
 const today = () => new Date().toISOString().slice(0, 10)
 const slugify = (value) => (value || 'business').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
@@ -109,7 +106,7 @@ export default function Settings({ orgId, org, members, backupData }) {
             State
             <select value={form.state} onChange={(event) => update('state', event.target.value)}>
               <option value="">Select state</option>
-              {STATES.map((state) => <option key={state} value={state}>{state}</option>)}
+              {STATE_NAMES.map((state) => <option key={state} value={state}>{state}</option>)}
             </select>
           </label>
         </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { computeTrialBalance, computeProfitAndLoss, computeBalanceSheet, computeGstSummary, computeAging, hsnSummary, round2 } from '../lib/accounting.js'
-import { downloadCsv } from '../lib/csv.js'
+import { downloadCsv, downloadJson } from '../lib/csv.js'
+import { buildGstr1 } from '../lib/gstr1.js'
 import Icon from './icons.jsx'
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -304,6 +305,97 @@ function GstSummary({ invoices, bills, creditNotes, debitNotes, items }) {
   )
 }
 
+// The GST portal's own "Returns Offline Tool" upload format - B2B, B2CL,
+// B2CS, CDNR and HSN sections built from this period's sales invoices and
+// credit notes (see buildGstr1 in src/lib/gstr1.js for exactly what is and
+// isn't covered). Best-effort against the publicly documented schema, not
+// something issued by the GST portal - always worth a look from your CA
+// (or the portal's own validation) before an actual filing.
+function Gstr1Export({ invoices, creditNotes, customers, items, org }) {
+  const [from, setFrom] = useState(monthStart())
+  const [to, setTo] = useState(today())
+
+  const periodInvoices = invoices.filter((invoice) => !invoice.voided && invoice.date >= from && invoice.date <= to)
+  const unmatchedCount = periodInvoices.filter(
+    (invoice) => !customers.some((customer) => customer.name.trim().toLowerCase() === (invoice.partyName || '').trim().toLowerCase()),
+  ).length
+
+  const gstr1 = buildGstr1(invoices, creditNotes, customers, items, org, from, to)
+  const b2bInvoiceCount = gstr1.b2b.reduce((total, bucket) => total + bucket.inv.length, 0)
+
+  const exportJson = () => downloadJson(`gstr1-${from}-to-${to}.json`, gstr1)
+
+  const exportCsv = () => {
+    const rows = [['Section', 'GSTIN', 'Invoice/Note No.', 'Date', 'Place of Supply', 'Rate %', 'Taxable Value', 'CGST', 'SGST', 'IGST']]
+    gstr1.b2b.forEach((bucket) => bucket.inv.forEach((inv) => {
+      const line = inv.itms[0].itm_det
+      rows.push(['B2B', bucket.ctin, inv.inum, inv.idt, inv.pos, amt(line.rt), amt(line.txval), amt(line.camt), amt(line.samt), amt(line.iamt)])
+    }))
+    gstr1.b2cl.forEach((inv) => {
+      const line = inv.itms[0].itm_det
+      rows.push(['B2CL', '', inv.inum, inv.idt, inv.pos, amt(line.rt), amt(line.txval), amt(line.camt), amt(line.samt), amt(line.iamt)])
+    })
+    gstr1.b2cs.forEach((bucket) => {
+      rows.push(['B2CS', '', '', '', bucket.pos, amt(bucket.rt), amt(bucket.txval), amt(bucket.camt), amt(bucket.samt), amt(bucket.iamt)])
+    })
+    gstr1.cdnr.forEach((bucket) => bucket.nt.forEach((note) => {
+      const line = note.itms[0].itm_det
+      rows.push(['CDNR', bucket.ctin, note.nt_num, note.nt_dt, note.pos, amt(line.rt), amt(line.txval), amt(line.camt), amt(line.samt), amt(line.iamt)])
+    }))
+    rows.push([])
+    rows.push(['HSN Summary', 'Description', 'UQC', 'Qty', 'Rate %', 'Taxable Value', 'CGST', 'SGST', 'IGST'])
+    gstr1.hsn.data.forEach((row) => {
+      rows.push(['HSN', row.hsn_sc, row.uqc, amt(row.qty), amt(row.rt), amt(row.txval), amt(row.camt), amt(row.samt), amt(row.iamt)])
+    })
+    downloadCsv(`gstr1-${from}-to-${to}.csv`, rows)
+  }
+
+  return (
+    <>
+      <div className="journal-header-row">
+        <label>From <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
+        <label>To <input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
+      </div>
+      <p className="section-sub">
+        Built from this period&apos;s sales invoices and credit notes, in the shape of the GST portal&apos;s own
+        offline-upload JSON - a strong head start for filing, not a guaranteed-correct one. Covers B2B, B2CL, B2CS,
+        CDNR and HSN; it leaves out exports, advances, and credit/debit notes against unregistered customers. Have
+        your CA (or the portal&apos;s own validation) check it before you file.
+      </p>
+      {!org.gstin && <p className="form-error">Your own GSTIN isn&apos;t set - add it in Settings before filing with this export.</p>}
+      {unmatchedCount > 0 && (
+        <p className="form-error">
+          {unmatchedCount} invoice{unmatchedCount === 1 ? '' : 's'} in this period {unmatchedCount === 1 ? 'has' : 'have'} a party
+          name that doesn&apos;t match a saved customer, so {unmatchedCount === 1 ? 'it was' : 'they were'} treated as unregistered
+          (B2C) - check Customers if any of them should be B2B.
+        </p>
+      )}
+      <div className="journal-header-row">
+        <button type="button" className="action-pill" onClick={exportJson}><Icon name="download" size={13} />Download GSTR-1 JSON</button>
+        <button type="button" className="action-pill" onClick={exportCsv}><Icon name="download" size={13} />Download readable CSV</button>
+      </div>
+      <div className="report-summary">
+        <div className="report-stat">
+          <div className="report-stat-label">B2B invoices</div>
+          <div className="report-stat-value">{b2bInvoiceCount}</div>
+        </div>
+        <div className="report-stat">
+          <div className="report-stat-label">B2C large invoices</div>
+          <div className="report-stat-value">{gstr1.b2cl.length}</div>
+        </div>
+        <div className="report-stat">
+          <div className="report-stat-label">B2C summary rows</div>
+          <div className="report-stat-value">{gstr1.b2cs.length}</div>
+        </div>
+        <div className="report-stat">
+          <div className="report-stat-label">HSN/SAC codes</div>
+          <div className="report-stat-value">{gstr1.hsn.data.length}</div>
+        </div>
+      </div>
+    </>
+  )
+}
+
 function Aging({ invoices, bills }) {
   const receivables = computeAging(invoices)
   const payables = computeAging(bills)
@@ -361,7 +453,7 @@ function Aging({ invoices, bills }) {
   )
 }
 
-export default function Reports({ accounts, entries, invoices, bills, creditNotes, debitNotes, items }) {
+export default function Reports({ accounts, entries, invoices, bills, creditNotes, debitNotes, items, customers, org }) {
   const [tab, setTab] = useState('trial')
   return (
     <div className="panel">
@@ -371,12 +463,14 @@ export default function Reports({ accounts, entries, invoices, bills, creditNote
         <button className={tab === 'pnl' ? 'active' : ''} onClick={() => setTab('pnl')}>Profit &amp; Loss</button>
         <button className={tab === 'bs' ? 'active' : ''} onClick={() => setTab('bs')}>Balance Sheet</button>
         <button className={tab === 'gst' ? 'active' : ''} onClick={() => setTab('gst')}>GST Summary</button>
+        <button className={tab === 'gstr1' ? 'active' : ''} onClick={() => setTab('gstr1')}>GSTR-1 Export</button>
         <button className={tab === 'aging' ? 'active' : ''} onClick={() => setTab('aging')}>Aging</button>
       </div>
       {tab === 'trial' && <TrialBalance accounts={accounts} entries={entries} />}
       {tab === 'pnl' && <ProfitAndLoss accounts={accounts} entries={entries} />}
       {tab === 'bs' && <BalanceSheet accounts={accounts} entries={entries} />}
       {tab === 'gst' && <GstSummary invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} items={items} />}
+      {tab === 'gstr1' && <Gstr1Export invoices={invoices} creditNotes={creditNotes} customers={customers} items={items} org={org} />}
       {tab === 'aging' && <Aging invoices={invoices} bills={bills} />}
     </div>
   )

@@ -1,15 +1,20 @@
 import { useState } from 'react'
 import { addOrgDoc, setOrgDoc } from '../firebase.js'
 import { downloadCsv } from '../lib/csv.js'
+import { STATE_NAMES } from '../lib/gstStateCodes.js'
 import CsvImport from './CsvImport.jsx'
 
-const blank = { name: '', gstin: '', phone: '', email: '', address: '' }
-const TEMPLATE_HEADERS = ['name', 'gstin', 'phone', 'email', 'address']
+const blank = { name: '', gstin: '', state: '', phone: '', email: '', address: '' }
+const TEMPLATE_HEADERS = ['name', 'gstin', 'state', 'phone', 'email', 'address']
+const stateByLowerName = new Map(STATE_NAMES.map((name) => [name.toLowerCase(), name]))
 
 // A business switching over usually already has this list in a spreadsheet
 // - importing skips any row with no name and any name that already exists
 // (case-insensitively, including other rows earlier in the same file), so
-// re-importing the same file twice is always safe.
+// re-importing the same file twice is always safe. A state that doesn't
+// match one of our known names/codes is kept as free text rather than
+// dropped - it just won't resolve to a place-of-supply code later (in the
+// GSTR-1 export) until it's corrected.
 async function importContacts(rows, { orgId, collectionName, contacts, singular }) {
   const seen = new Set(contacts.map((contact) => contact.name.trim().toLowerCase()))
   let added = 0
@@ -21,6 +26,7 @@ async function importContacts(rows, { orgId, collectionName, contacts, singular 
     await addOrgDoc(orgId, collectionName, {
       name,
       gstin: row.gstin || '',
+      state: stateByLowerName.get((row.state || '').trim().toLowerCase()) || row.state || '',
       phone: row.phone || '',
       email: row.email || '',
       address: row.address || '',
@@ -43,7 +49,14 @@ function ContactList({ orgId, collectionName, title, singular, contacts }) {
 
   const startEdit = (contact) => {
     setEditingId(contact.id)
-    setForm({ name: contact.name || '', gstin: contact.gstin || '', phone: contact.phone || '', email: contact.email || '', address: contact.address || '' })
+    setForm({
+      name: contact.name || '',
+      gstin: contact.gstin || '',
+      state: contact.state || '',
+      phone: contact.phone || '',
+      email: contact.email || '',
+      address: contact.address || '',
+    })
   }
 
   const cancelEdit = () => { setEditingId(null); setForm(blank) }
@@ -77,6 +90,13 @@ function ContactList({ orgId, collectionName, title, singular, contacts }) {
             GSTIN
             <input value={form.gstin} onChange={(event) => update('gstin', event.target.value)} placeholder="22AAAAA0000A1Z5" />
           </label>
+          <label>
+            State
+            <select value={form.state} onChange={(event) => update('state', event.target.value)}>
+              <option value="">Select state</option>
+              {STATE_NAMES.map((state) => <option key={state} value={state}>{state}</option>)}
+            </select>
+          </label>
         </div>
         <div className="journal-header-row">
           <label>
@@ -100,25 +120,26 @@ function ContactList({ orgId, collectionName, title, singular, contacts }) {
       </form>
 
       <table>
-        <thead><tr><th>Name</th><th>GSTIN</th><th>Phone</th><th>Email</th><th /></tr></thead>
+        <thead><tr><th>Name</th><th>GSTIN</th><th>State</th><th>Phone</th><th>Email</th><th /></tr></thead>
         <tbody>
           {contacts.map((contact) => (
             <tr key={contact.id}>
               <td>{contact.name}</td>
               <td>{contact.gstin || '-'}</td>
+              <td>{contact.state || '-'}</td>
               <td>{contact.phone || '-'}</td>
               <td>{contact.email || '-'}</td>
               <td><button type="button" className="link-button" onClick={() => startEdit(contact)}>Edit</button></td>
             </tr>
           ))}
-          {contacts.length === 0 && <tr><td colSpan={5}>No {title.toLowerCase()} yet.</td></tr>}
+          {contacts.length === 0 && <tr><td colSpan={6}>No {title.toLowerCase()} yet.</td></tr>}
         </tbody>
       </table>
 
       <p className="report-section-title" style={{ marginTop: 24 }}>Bulk Import</p>
       <p className="section-sub">
         Already have a {singular.toLowerCase()} list in a spreadsheet? Export it as CSV with columns name, gstin,
-        phone, email, address (name is required, the rest are optional) and import it here.
+        state, phone, email, address (name is required, the rest are optional) and import it here.
       </p>
       <div className="journal-header-row">
         <button
@@ -126,7 +147,7 @@ function ContactList({ orgId, collectionName, title, singular, contacts }) {
           className="link-button"
           onClick={() => downloadCsv(`${singular.toLowerCase()}-import-template.csv`, [
             TEMPLATE_HEADERS,
-            [`Example ${singular}`, '22AAAAA0000A1Z5', '9876543210', 'example@business.com', '123 Main Road, City'],
+            [`Example ${singular}`, '22AAAAA0000A1Z5', 'Maharashtra', '9876543210', 'example@business.com', '123 Main Road, City'],
           ])}
         >
           Download CSV template
