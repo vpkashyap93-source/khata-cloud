@@ -194,6 +194,14 @@ Balance Sheet reports - all backed by Firebase, in real time.
   file (`downloadJson` in `src/lib/csv.js`) - the business's own copy of its
   data, readable independently of this app or Firebase. Not a restore tool,
   just a safety net.
+- **CSV import for Customers, Vendors, and Items**: a business switching
+  over usually already has these lists in a spreadsheet - each screen's
+  "Bulk Import" section (`src/components/CsvImport.jsx`, `parseCsvObjects`
+  in `src/lib/csv.js`) accepts a CSV with a header row, skips any row with
+  a blank name or a name that already exists (case-insensitively, including
+  duplicates within the same file), and reports how many were added vs.
+  skipped - safe to re-import the same file twice. A "Download CSV
+  template" link on each screen shows the exact columns expected.
 
 ## Run locally
 

@@ -1,9 +1,42 @@
 import { Fragment, useState } from 'react'
 import { addOrgDoc, setOrgDoc } from '../firebase.js'
 import { stockOnHand, round2 } from '../lib/accounting.js'
+import { downloadCsv } from '../lib/csv.js'
+import CsvImport from './CsvImport.jsx'
 
 const blank = { name: '', type: 'service', hsnSac: '', rate: '', gstPercent: 18, trackInventory: false, openingStock: 0, reorderLevel: 0 }
 const today = () => new Date().toISOString().slice(0, 10)
+const TEMPLATE_HEADERS = ['name', 'type', 'hsnSac', 'rate', 'gstPercent', 'trackInventory', 'openingStock', 'reorderLevel']
+const TRUE_VALUES = new Set(['yes', 'y', 'true', '1'])
+
+// Skips any row with no name and any name that already exists (case-
+// insensitively, including earlier rows in the same file) - safe to
+// re-import the same spreadsheet twice. Inventory fields only apply to
+// "goods" rows; a service row's stock columns are ignored either way.
+async function importItems(rows, { orgId, items }) {
+  const seen = new Set(items.map((item) => item.name.trim().toLowerCase()))
+  let added = 0
+  let skipped = 0
+  for (const row of rows) {
+    const name = (row.name || '').trim()
+    if (!name || seen.has(name.toLowerCase())) { skipped += 1; continue }
+    seen.add(name.toLowerCase())
+    const type = (row.type || '').trim().toLowerCase() === 'goods' ? 'goods' : 'service'
+    const trackInventory = type === 'goods' && TRUE_VALUES.has((row.trackinventory || '').trim().toLowerCase())
+    await addOrgDoc(orgId, 'items', {
+      name,
+      type,
+      hsnSac: row.hsnsac || '',
+      rate: Number(row.rate) || 0,
+      gstPercent: Number(row.gstpercent) || 18,
+      trackInventory,
+      openingStock: trackInventory ? Number(row.openingstock) || 0 : 0,
+      reorderLevel: trackInventory ? Number(row.reorderlevel) || 0 : 0,
+    })
+    added += 1
+  }
+  return `${added} item${added === 1 ? '' : 's'} added${skipped ? `, ${skipped} skipped (blank name or duplicate)` : ''}.`
+}
 
 function AdjustStock({ orgId, item, onDone }) {
   const [qty, setQty] = useState('')
@@ -203,6 +236,26 @@ export default function Items({ orgId, items, movements }) {
           {items.length === 0 && <tr><td colSpan={7}>No items yet.</td></tr>}
         </tbody>
       </table>
+
+      <p className="report-section-title" style={{ marginTop: 24 }}>Bulk Import</p>
+      <p className="section-sub">
+        Already have a product/service catalog in a spreadsheet? Export it as CSV with columns name, type
+        (goods/service), hsnSac, rate, gstPercent, trackInventory (yes/no), openingStock, reorderLevel - only
+        name is required - and import it here.
+      </p>
+      <div className="journal-header-row">
+        <button
+          type="button"
+          className="link-button"
+          onClick={() => downloadCsv('items-import-template.csv', [
+            TEMPLATE_HEADERS,
+            ['Example Widget', 'goods', '8471', '499.00', '18', 'yes', '50', '10'],
+          ])}
+        >
+          Download CSV template
+        </button>
+        <CsvImport label="Import items" onRows={(rows) => importItems(rows, { orgId, items })} />
+      </div>
     </div>
   )
 }

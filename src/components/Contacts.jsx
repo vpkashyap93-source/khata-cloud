@@ -1,7 +1,35 @@
 import { useState } from 'react'
 import { addOrgDoc, setOrgDoc } from '../firebase.js'
+import { downloadCsv } from '../lib/csv.js'
+import CsvImport from './CsvImport.jsx'
 
 const blank = { name: '', gstin: '', phone: '', email: '', address: '' }
+const TEMPLATE_HEADERS = ['name', 'gstin', 'phone', 'email', 'address']
+
+// A business switching over usually already has this list in a spreadsheet
+// - importing skips any row with no name and any name that already exists
+// (case-insensitively, including other rows earlier in the same file), so
+// re-importing the same file twice is always safe.
+async function importContacts(rows, { orgId, collectionName, contacts, singular }) {
+  const seen = new Set(contacts.map((contact) => contact.name.trim().toLowerCase()))
+  let added = 0
+  let skipped = 0
+  for (const row of rows) {
+    const name = (row.name || '').trim()
+    if (!name || seen.has(name.toLowerCase())) { skipped += 1; continue }
+    seen.add(name.toLowerCase())
+    await addOrgDoc(orgId, collectionName, {
+      name,
+      gstin: row.gstin || '',
+      phone: row.phone || '',
+      email: row.email || '',
+      address: row.address || '',
+    })
+    added += 1
+  }
+  const noun = singular.toLowerCase()
+  return `${added} ${noun}${added === 1 ? '' : 's'} added${skipped ? `, ${skipped} skipped (blank name or duplicate)` : ''}.`
+}
 
 // Shared shape for Customers and Vendors - both are just a saved contact
 // list (name, GSTIN, phone, email, address) that invoices/bills pick from
@@ -86,6 +114,28 @@ function ContactList({ orgId, collectionName, title, singular, contacts }) {
           {contacts.length === 0 && <tr><td colSpan={5}>No {title.toLowerCase()} yet.</td></tr>}
         </tbody>
       </table>
+
+      <p className="report-section-title" style={{ marginTop: 24 }}>Bulk Import</p>
+      <p className="section-sub">
+        Already have a {singular.toLowerCase()} list in a spreadsheet? Export it as CSV with columns name, gstin,
+        phone, email, address (name is required, the rest are optional) and import it here.
+      </p>
+      <div className="journal-header-row">
+        <button
+          type="button"
+          className="link-button"
+          onClick={() => downloadCsv(`${singular.toLowerCase()}-import-template.csv`, [
+            TEMPLATE_HEADERS,
+            [`Example ${singular}`, '22AAAAA0000A1Z5', '9876543210', 'example@business.com', '123 Main Road, City'],
+          ])}
+        >
+          Download CSV template
+        </button>
+        <CsvImport
+          label={`Import ${singular.toLowerCase()}s`}
+          onRows={(rows) => importContacts(rows, { orgId, collectionName, contacts, singular })}
+        />
+      </div>
     </div>
   )
 }
