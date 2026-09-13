@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { computeTrialBalance, computeProfitAndLoss, computeBalanceSheet, computeGstSummary, computeAging, hsnSummary, round2 } from '../lib/accounting.js'
-import { downloadCsv, downloadJson } from '../lib/csv.js'
+import { downloadCsv, downloadJson, parseCsvObjects } from '../lib/csv.js'
 import { buildGstr1 } from '../lib/gstr1.js'
 import { buildPurchaseRegister } from '../lib/purchaseRegister.js'
+import { parseGstr2bRows, reconcileGstr2b } from '../lib/gstr2bReconcile.js'
 import Icon from './icons.jsx'
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -520,6 +521,172 @@ function PurchaseRegister({ bills, debitNotes, vendors, items }) {
   )
 }
 
+const GSTR2B_TEMPLATE_HEADERS = ['GSTIN of supplier', 'Trade/Legal Name', 'Invoice Number', 'Invoice Date', 'Taxable Value', 'Integrated Tax', 'Central Tax', 'State/UT Tax']
+
+// Matches a GSTR-2B download (uploaded as CSV, since that's the one format
+// this app can parse with confidence - see parseGstr2bRows in
+// src/lib/gstr2bReconcile.js for the column names it recognizes, including
+// several from the portal's own Excel export) against this period's bills,
+// so the tedious row-by-row check against Purchase Register becomes a
+// glance at four buckets instead.
+function Gstr2bMatch({ bills, vendors }) {
+  const [from, setFrom] = useState(monthStart())
+  const [to, setTo] = useState(today())
+  const [result, setResult] = useState(null)
+  const [fileError, setFileError] = useState('')
+  const [fileName, setFileName] = useState('')
+
+  const handleFile = async (file) => {
+    if (!file) return
+    setFileError('')
+    setResult(null)
+    try {
+      const text = await file.text()
+      const rows = parseGstr2bRows(parseCsvObjects(text))
+      if (rows.length === 0) {
+        setFileError("Couldn't find any usable rows - check the column headers match the template.")
+        return
+      }
+      setResult(reconcileGstr2b(rows, bills, vendors, from, to))
+      setFileName(file.name)
+    } catch (err) {
+      setFileError(`Could not read that file - ${err.message}`)
+    }
+  }
+
+  const exportCsv = () => {
+    const rows = [['Status', 'Vendor', 'GSTIN', 'Invoice No.', 'Book Taxable', 'Portal Taxable', 'Book Tax', 'Portal Tax']]
+    result.matched.forEach(({ bill, vendor }) => rows.push(['Matched', vendor.name, vendor.gstin, bill.number, amt(bill.taxable), amt(bill.taxable), amt(round2(bill.cgst + bill.sgst + bill.igst)), amt(round2(bill.cgst + bill.sgst + bill.igst))]))
+    result.mismatched.forEach(({ bill, vendor, portalRow }) => rows.push(['Mismatched', vendor.name, vendor.gstin, bill.number, amt(bill.taxable), amt(portalRow.taxableValue), amt(round2(bill.cgst + bill.sgst + bill.igst)), amt(Number(portalRow.cgst) + Number(portalRow.sgst) + Number(portalRow.igst))]))
+    result.missingFromPortal.forEach(({ bill, vendor }) => rows.push(['Missing from 2B (ITC risk)', vendor.name, vendor.gstin, bill.number, amt(bill.taxable), '', amt(round2(bill.cgst + bill.sgst + bill.igst)), '']))
+    result.missingFromBooks.forEach((row) => rows.push(['Missing from books', row.vendorName || '', row.gstin, row.invoiceNumber, '', amt(row.taxableValue), '', amt((Number(row.cgst) || 0) + (Number(row.sgst) || 0) + (Number(row.igst) || 0))]))
+    downloadCsv(`gstr2b-reconciliation-${from}-to-${to}.csv`, rows)
+  }
+
+  return (
+    <>
+      <div className="journal-header-row">
+        <label>From <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
+        <label>To <input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
+      </div>
+      <p className="section-sub">
+        This app can&apos;t download your GSTR-2B itself - only the GST portal can (Returns Dashboard -&gt; GSTR-2A/2B),
+        since it&apos;s built from what your vendors filed, not your own data. Download it there, save the B2B sheet as
+        CSV (or use the template below), and upload it here to match it against this period&apos;s bills automatically.
+      </p>
+      <div className="journal-header-row">
+        <button
+          type="button"
+          className="link-button"
+          onClick={() => downloadCsv('gstr2b-import-template.csv', [
+            GSTR2B_TEMPLATE_HEADERS,
+            ['27BBBBB1111B1Z9', 'Example Vendor', 'BILL-0001', today(), '5000.00', '0.00', '450.00', '450.00'],
+          ])}
+        >
+          Download CSV template
+        </button>
+        <label className="action-pill" style={{ cursor: 'pointer' }}>
+          <Icon name="upload" size={13} />Upload GSTR-2B CSV
+          <input type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={(event) => handleFile(event.target.files?.[0])} />
+        </label>
+      </div>
+      {fileError && <p className="form-error">{fileError}</p>}
+
+      {result && (
+        <>
+          <p className="section-sub">Matched against <strong>{fileName}</strong>.</p>
+          {result.noGstinBills.length > 0 && (
+            <p className="form-error">
+              {result.noGstinBills.length} bill{result.noGstinBills.length === 1 ? '' : 's'} in this period {result.noGstinBills.length === 1 ? "couldn't" : "couldn't"} be matched
+              at all - {result.noGstinBills.length === 1 ? 'its' : 'their'} vendor has no saved GSTIN. Add it in Vendors and re-upload.
+            </p>
+          )}
+          <ExportButton onClick={exportCsv} />
+          <div className="report-summary">
+            <div className="report-stat">
+              <div className="report-stat-label">Matched</div>
+              <div className="report-stat-value green">{result.matched.length}</div>
+            </div>
+            <div className="report-stat">
+              <div className="report-stat-label">Mismatched</div>
+              <div className={`report-stat-value ${result.mismatched.length > 0 ? 'red' : ''}`}>{result.mismatched.length}</div>
+            </div>
+            <div className="report-stat">
+              <div className="report-stat-label">Missing from 2B (ITC risk)</div>
+              <div className={`report-stat-value ${result.missingFromPortal.length > 0 ? 'red' : ''}`}>{result.missingFromPortal.length}</div>
+            </div>
+            <div className="report-stat">
+              <div className="report-stat-label">Missing from books</div>
+              <div className={`report-stat-value ${result.missingFromBooks.length > 0 ? 'red' : ''}`}>{result.missingFromBooks.length}</div>
+            </div>
+          </div>
+
+          {result.mismatched.length > 0 && (
+            <>
+              <p className="report-section-title">Mismatched - value differs from the portal</p>
+              <table>
+                <thead><tr><th>Vendor</th><th>Bill No.</th><th className="amt">Book Taxable</th><th className="amt">Portal Taxable</th><th className="amt">Book Tax</th><th className="amt">Portal Tax</th></tr></thead>
+                <tbody>
+                  {result.mismatched.map(({ bill, vendor, portalRow }) => (
+                    <tr key={bill.id}>
+                      <td>{vendor.name}</td>
+                      <td>{bill.number}</td>
+                      <td className="amt">{money(bill.taxable)}</td>
+                      <td className="amt">{money(portalRow.taxableValue)}</td>
+                      <td className="amt">{money(round2(bill.cgst + bill.sgst + bill.igst))}</td>
+                      <td className="amt">{money((Number(portalRow.cgst) || 0) + (Number(portalRow.sgst) || 0) + (Number(portalRow.igst) || 0))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+
+          {result.missingFromPortal.length > 0 && (
+            <>
+              <p className="report-section-title">In your books, not on the portal - ITC not safe to claim yet</p>
+              <table>
+                <thead><tr><th>Vendor</th><th>Bill No.</th><th>Date</th><th className="amt">Taxable</th><th className="amt">Tax</th></tr></thead>
+                <tbody>
+                  {result.missingFromPortal.map(({ bill, vendor }) => (
+                    <tr key={bill.id}>
+                      <td>{vendor.name}</td>
+                      <td>{bill.number}</td>
+                      <td>{bill.date}</td>
+                      <td className="amt">{money(bill.taxable)}</td>
+                      <td className="amt">{money(round2(bill.cgst + bill.sgst + bill.igst))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+
+          {result.missingFromBooks.length > 0 && (
+            <>
+              <p className="report-section-title">On the portal, not in your books - a bill you may not have entered</p>
+              <table>
+                <thead><tr><th>Vendor</th><th>GSTIN</th><th>Invoice No.</th><th>Date</th><th className="amt">Taxable</th></tr></thead>
+                <tbody>
+                  {result.missingFromBooks.map((row, index) => (
+                    <tr key={`${row.gstin}-${row.invoiceNumber}-${index}`}>
+                      <td>{row.vendorName || '-'}</td>
+                      <td>{row.gstin}</td>
+                      <td>{row.invoiceNumber}</td>
+                      <td>{row.invoiceDate || '-'}</td>
+                      <td className="amt">{money(row.taxableValue)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+        </>
+      )}
+    </>
+  )
+}
+
 function Aging({ invoices, bills }) {
   const receivables = computeAging(invoices)
   const payables = computeAging(bills)
@@ -589,6 +756,7 @@ export default function Reports({ accounts, entries, invoices, bills, creditNote
         <button className={tab === 'gst' ? 'active' : ''} onClick={() => setTab('gst')}>GST Summary</button>
         <button className={tab === 'gstr1' ? 'active' : ''} onClick={() => setTab('gstr1')}>GSTR-1 Export</button>
         <button className={tab === 'purchaseRegister' ? 'active' : ''} onClick={() => setTab('purchaseRegister')}>Purchase Register</button>
+        <button className={tab === 'gstr2b' ? 'active' : ''} onClick={() => setTab('gstr2b')}>GSTR-2B Match</button>
         <button className={tab === 'aging' ? 'active' : ''} onClick={() => setTab('aging')}>Aging</button>
       </div>
       {tab === 'trial' && <TrialBalance accounts={accounts} entries={entries} />}
@@ -597,6 +765,7 @@ export default function Reports({ accounts, entries, invoices, bills, creditNote
       {tab === 'gst' && <GstSummary invoices={invoices} bills={bills} creditNotes={creditNotes} debitNotes={debitNotes} items={items} />}
       {tab === 'gstr1' && <Gstr1Export invoices={invoices} creditNotes={creditNotes} customers={customers} items={items} org={org} />}
       {tab === 'purchaseRegister' && <PurchaseRegister bills={bills} debitNotes={debitNotes} vendors={vendors} items={items} />}
+      {tab === 'gstr2b' && <Gstr2bMatch bills={bills} vendors={vendors} />}
       {tab === 'aging' && <Aging invoices={invoices} bills={bills} />}
     </div>
   )

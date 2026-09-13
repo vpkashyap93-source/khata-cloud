@@ -227,6 +227,20 @@ Balance Sheet reports - all backed by Firebase, in real time.
   with no matching row there usually means that vendor hasn't filed yet,
   or filed it differently, so that ITC isn't safe to claim until it shows
   up. Flags any bill whose party name doesn't match a saved vendor.
+- **GSTR-2B Match**: Reports -> GSTR-2B Match automates that check. This
+  app can't download your GSTR-2B itself (only the GST portal can, since
+  it's built from your vendors' own filings), but once you've downloaded
+  it there and saved the B2B sheet as CSV, uploading it here
+  (`parseGstr2bRows`/`reconcileGstr2b` in `src/lib/gstr2bReconcile.js`)
+  matches it against this period's bills by vendor GSTIN + invoice number
+  and sorts them into four buckets: matched, mismatched (amount differs -
+  worth a closer look), missing from the portal (booked but not yet in
+  your vendor's filing, so that ITC isn't safe to claim yet), and missing
+  from your books (a portal row with no matching bill - something you may
+  not have entered). Recognizes both this app's own CSV template and,
+  best-effort, several of the portal's own Excel column names. Bills whose
+  vendor has no saved GSTIN can't be matched at all and are flagged
+  separately rather than silently skipped.
 
 ## Run locally
 
