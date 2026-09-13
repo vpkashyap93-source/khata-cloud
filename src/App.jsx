@@ -273,7 +273,7 @@ export default function App() {
           </span>
         </header>
         <main className="app-main">
-          {tab === 'dashboard' && <Dashboard accounts={accounts} entries={entries} invoices={invoices} bills={bills} />}
+          {tab === 'dashboard' && <Dashboard accounts={accounts} entries={entries} invoices={invoices} bills={bills} items={items} stockMovements={stockMovements} />}
           {tab === 'accounts' && <ChartOfAccounts orgId={org.id} accounts={accounts} />}
           {tab === 'openingBalances' && <OpeningBalances orgId={org.id} accounts={accounts} customers={customers} vendors={vendors} invoices={invoices} bills={bills} />}
           {tab === 'journal' && <JournalEntries orgId={org.id} accounts={accounts} entries={entries} />}

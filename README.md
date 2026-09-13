@@ -161,6 +161,11 @@ Balance Sheet reports - all backed by Firebase, in real time.
   until "Convert to Bill" posts the real bill and journal entry, reusing
   `buildBillJournalLines` exactly the way Estimates reuses
   `buildInvoiceJournalLines`.
+- **Low stock alert**: a tracked item can have an optional reorder level -
+  once stock falls to or below it, the item is flagged in the Items table
+  and listed on the Dashboard (`lowStockItems` in `src/lib/accounting.js`).
+  Leaving the reorder level at 0 (the default) opts an item out, so nothing
+  is flagged just for reaching zero stock unless you asked for that alert.
 
 ## Run locally
 

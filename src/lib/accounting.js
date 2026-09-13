@@ -465,6 +465,15 @@ export const stockOnHand = (item, movements) =>
       movements.filter((movement) => movement.itemId === item.id).reduce((total, movement) => total + (Number(movement.qty) || 0), 0),
   )
 
+// Tracked items that have fallen to or below their own reorder level - a
+// reorderLevel of 0 (the default) means no alert is wanted for that item,
+// so it's excluded rather than flagged the moment stock hits zero.
+export const lowStockItems = (items, movements) => items
+  .filter((item) => item.trackInventory && (Number(item.reorderLevel) || 0) > 0)
+  .map((item) => ({ ...item, stock: stockOnHand(item, movements) }))
+  .filter((item) => item.stock <= item.reorderLevel)
+  .sort((a, b) => a.stock - b.stock)
+
 const inRange = (docs, from, to) => docs.filter((doc) => !doc.voided && (!from || doc.date >= from) && (!to || doc.date <= to))
 const sumField = (docs, field) => round2(docs.reduce((total, doc) => total + (Number(doc[field]) || 0), 0))
 

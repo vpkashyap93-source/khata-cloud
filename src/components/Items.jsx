@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react'
 import { addOrgDoc, setOrgDoc } from '../firebase.js'
 import { stockOnHand, round2 } from '../lib/accounting.js'
 
-const blank = { name: '', type: 'service', hsnSac: '', rate: '', gstPercent: 18, trackInventory: false, openingStock: 0 }
+const blank = { name: '', type: 'service', hsnSac: '', rate: '', gstPercent: 18, trackInventory: false, openingStock: 0, reorderLevel: 0 }
 const today = () => new Date().toISOString().slice(0, 10)
 
 function AdjustStock({ orgId, item, onDone }) {
@@ -71,6 +71,7 @@ export default function Items({ orgId, items, movements }) {
       gstPercent: item.gstPercent ?? 18,
       trackInventory: Boolean(item.trackInventory),
       openingStock: item.openingStock ?? 0,
+      reorderLevel: item.reorderLevel ?? 0,
     })
   }
 
@@ -87,6 +88,7 @@ export default function Items({ orgId, items, movements }) {
       gstPercent: Number(form.gstPercent) || 0,
       trackInventory: form.type === 'goods' && form.trackInventory,
       openingStock: Number(form.openingStock) || 0,
+      reorderLevel: Number(form.reorderLevel) || 0,
     }
     if (editingId) {
       await setOrgDoc(orgId, 'items', editingId, data)
@@ -138,10 +140,23 @@ export default function Items({ orgId, items, movements }) {
               Track inventory for this item
             </label>
             {form.trackInventory && (
-              <label>
-                Opening stock
-                <input type="number" step="1" value={form.openingStock} onChange={(event) => update('openingStock', event.target.value)} />
-              </label>
+              <>
+                <label>
+                  Opening stock
+                  <input type="number" step="1" value={form.openingStock} onChange={(event) => update('openingStock', event.target.value)} />
+                </label>
+                <label>
+                  Reorder level (optional)
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={form.reorderLevel}
+                    onChange={(event) => update('reorderLevel', event.target.value)}
+                    placeholder="Alert when stock falls to this"
+                  />
+                </label>
+              </>
             )}
           </div>
         )}
@@ -155,7 +170,10 @@ export default function Items({ orgId, items, movements }) {
       <table>
         <thead><tr><th>Name</th><th>Type</th><th>HSN/SAC</th><th>Rate</th><th>GST %</th><th>Stock on hand</th><th /></tr></thead>
         <tbody>
-          {items.map((item) => (
+          {items.map((item) => {
+            const stock = item.trackInventory ? round2(stockOnHand(item, movements)) : null
+            const isLow = item.trackInventory && (Number(item.reorderLevel) || 0) > 0 && stock <= item.reorderLevel
+            return (
             <Fragment key={item.id}>
               <tr>
                 <td>{item.name}</td>
@@ -163,7 +181,10 @@ export default function Items({ orgId, items, movements }) {
                 <td>{item.hsnSac || '-'}</td>
                 <td>{Number(item.rate).toFixed(2)}</td>
                 <td>{item.gstPercent}%</td>
-                <td>{item.trackInventory ? round2(stockOnHand(item, movements)) : '-'}</td>
+                <td className={isLow ? 'overdue-date' : ''}>
+                  {stock ?? '-'}
+                  {isLow && ' · low stock'}
+                </td>
                 <td>
                   <button type="button" className="link-button" onClick={() => startEdit(item)}>Edit</button>
                   {item.trackInventory && (
@@ -177,7 +198,8 @@ export default function Items({ orgId, items, movements }) {
                 </tr>
               )}
             </Fragment>
-          ))}
+            )
+          })}
           {items.length === 0 && <tr><td colSpan={7}>No items yet.</td></tr>}
         </tbody>
       </table>

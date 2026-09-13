@@ -1,4 +1,4 @@
-import { accountBalance, cashTrend, monthlyIncomeExpense, topExpenseAccounts, invoiceStats, upcomingDues, liquidAccounts, round2 } from '../lib/accounting.js'
+import { accountBalance, cashTrend, monthlyIncomeExpense, topExpenseAccounts, invoiceStats, upcomingDues, liquidAccounts, lowStockItems, round2 } from '../lib/accounting.js'
 import Icon from './icons.jsx'
 
 const money = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
@@ -100,7 +100,7 @@ function IncomeExpenseChart({ series }) {
   )
 }
 
-export default function Dashboard({ accounts, entries, invoices, bills }) {
+export default function Dashboard({ accounts, entries, invoices, bills, items, stockMovements }) {
   const receivable = accounts.find((account) => account.name === 'Accounts Receivable')
   const payable = accounts.find((account) => account.name === 'Accounts Payable')
 
@@ -127,6 +127,7 @@ export default function Dashboard({ accounts, entries, invoices, bills }) {
   const recent = entries.slice(0, 6)
   const accountName = (id) => accounts.find((account) => account.id === id)?.name || 'Unknown'
   const dues = upcomingDues(invoices, bills, 5)
+  const lowStock = lowStockItems(items, stockMovements)
   const dueLabel = (dueDate) => {
     const days = Math.round((new Date(dueDate) - new Date(new Date().toISOString().slice(0, 10))) / 86400000)
     if (days < 0) return { text: `Overdue by ${Math.abs(days)}d`, overdue: true }
@@ -199,6 +200,24 @@ export default function Dashboard({ accounts, entries, invoices, bills }) {
             )
           })}
         </div>
+
+        {lowStock.length > 0 && (
+          <div className="dash-card">
+            <div className="dash-card-head"><h3>Low stock</h3><span className="dash-card-sub">At or below reorder level</span></div>
+            {lowStock.map((item) => (
+              <div className="due-row" key={item.id}>
+                <div className="due-icon src-bill"><Icon name="items" size={13} /></div>
+                <div className="due-row-body">
+                  <div className="due-row-top">
+                    <span>{item.name}</span>
+                    <span>{item.stock} in stock</span>
+                  </div>
+                  <div className="due-row-sub overdue">Reorder level: {item.reorderLevel}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="dash-card">
           <div className="dash-card-head"><h3>Invoices &amp; bills</h3><span className="dash-card-sub">Status snapshot</span></div>
