@@ -22,8 +22,8 @@
   --red: #dc2626;
   --red-bg: #fde8e8;
   --input-bg: #ffffff;
-  --th-bg: #fafbfd;
-  --row-hover-bg: #fafbfe;
+  --th-bg: #eef1f7;
+  --row-hover-bg: #f6f8fc;
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
@@ -95,25 +95,49 @@ button:active { transform: translateY(1px); }
 
 input, select, textarea {
   font-family: inherit;
-  font-size: 0.95rem;
-  padding: 8px 11px;
-  border: 1px solid var(--border);
+  font-size: 0.92rem;
+  padding: 9px 12px;
+  border: 1.5px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--input-bg);
   color: var(--ink);
-  transition: border-color .15s ease, box-shadow .15s ease;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
 }
-input:focus-visible, select:focus-visible, button:focus-visible {
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: 0.85; }
+input:hover, select:hover, textarea:hover { border-color: var(--accent-light); }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible {
   outline: none;
   border-color: var(--accent);
   box-shadow: var(--shadow-focus);
 }
+input:disabled, select:disabled, textarea:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Native <select> arrows look like a bare browser form control - swap in a
+   custom chevron (re-declared per theme, since a data-URI can't read CSS
+   vars) so dropdowns match the rest of the input styling instead of
+   standing out as unstyled. */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 13px;
+  padding-right: 34px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7385' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+}
+:root[data-theme="dark"] select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b93ad' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+}
+
+input[type="checkbox"], input[type="radio"] { width: auto; accent-color: var(--accent); cursor: pointer; }
+input[type="date"], input[type="datetime-local"] { cursor: text; }
 
 table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; }
-th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
 th {
-  font-size: 0.72rem; text-transform: uppercase; letter-spacing: .04em; font-weight: 700;
-  color: var(--muted); background: var(--th-bg); border-bottom: 1px solid var(--border);
+  font-size: 0.72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 700;
+  color: var(--muted); background: var(--th-bg); border-bottom: 1.5px solid var(--border);
 }
 tbody tr { transition: background .12s ease; }
 tbody tr:hover { background: var(--row-hover-bg); }
@@ -236,20 +260,35 @@ tfoot td { font-weight: 700; border-top: 2px solid var(--ink); border-bottom: no
 }
 @media (prefers-reduced-motion: reduce) { .sidebar { transition: none; } }
 
-.panel { background: var(--panel); border-radius: var(--radius-md); padding: 22px; border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
-.panel h2 { margin-top: 0; font-weight: 700; letter-spacing: -0.01em; }
+.panel { background: var(--panel); border-radius: var(--radius-lg); padding: 26px; border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+.panel h2 { margin-top: 0; font-weight: 800; letter-spacing: -0.015em; font-size: 1.3rem; }
+
+/* A panel is usually "form up top, list below" - this line makes that
+   boundary visible instead of the two blurring into one long flat page,
+   without touching a single component's markup (every panel's second
+   section already starts with a plain h3). */
+.panel h3 {
+  margin: 30px 0 14px;
+  padding-top: 26px;
+  border-top: 1px solid var(--border);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.panel h3:first-child { margin-top: 0; padding-top: 0; border-top: none; }
 
 .inline-form { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
 .inline-form button, .journal-form > button[type="submit"] {
   background: var(--accent-grad);
   color: #fff;
   border: none;
-  border-radius: var(--radius-sm);
-  padding: 9px 16px;
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
   font-weight: 600;
+  font-size: 0.92rem;
   box-shadow: 0 3px 10px rgba(37, 84, 199, 0.24);
 }
-.inline-form button:hover, .journal-form > button[type="submit"]:hover { box-shadow: 0 5px 14px rgba(37, 84, 199, 0.32); transform: translateY(-1px); }
+.inline-form button:hover, .journal-form > button[type="submit"]:hover { box-shadow: 0 6px 16px rgba(37, 84, 199, 0.34); transform: translateY(-1px); }
 
 .account-group { margin-top: 12px; }
 .account-group h3 { margin-bottom: 4px; }
@@ -359,8 +398,8 @@ tfoot td { font-weight: 700; border-top: 2px solid var(--ink); border-bottom: no
 .contact-form { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; max-width: 640px; }
 .contact-form label { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; }
 .contact-form textarea { font-family: inherit; font-size: 0.95rem; padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px; resize: vertical; }
-.contact-form button[type="submit"] { background: var(--accent-grad); color: #fff; border: none; border-radius: var(--radius-sm); padding: 9px 16px; font-weight: 600; align-self: flex-start; box-shadow: 0 3px 10px rgba(37, 84, 199, 0.24); }
-.contact-form button[type="submit"]:hover { box-shadow: 0 5px 14px rgba(37, 84, 199, 0.32); transform: translateY(-1px); }
+.contact-form button[type="submit"] { background: var(--accent-grad); color: #fff; border: none; border-radius: var(--radius-md); padding: 10px 18px; font-weight: 600; font-size: 0.92rem; align-self: flex-start; box-shadow: 0 3px 10px rgba(37, 84, 199, 0.24); }
+.contact-form button[type="submit"]:hover { box-shadow: 0 6px 16px rgba(37, 84, 199, 0.34); transform: translateY(-1px); }
 
 /* ---- Payment recording ---- */
 .voucher-form { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
